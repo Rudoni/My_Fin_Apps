@@ -118,6 +118,10 @@ def _coerce_boolean(series: pd.Series) -> pd.Series:
     return normalized.apply(parse_value)
 
 
+def _force_year(series: pd.Series, year: int) -> pd.Series:
+    return series.apply(lambda value: value.replace(year=year) if pd.notna(value) else value)
+
+
 def _load_raw_resale_file(file_path_or_buffer, extension: str, header_mode) -> pd.DataFrame:
     if hasattr(file_path_or_buffer, "seek"):
         file_path_or_buffer.seek(0)
@@ -199,6 +203,13 @@ def clean_resale_dataframe(file_path_or_buffer, file_name: str | None = None) ->
 
     for date_col in ["purchase_date", "sale_date"]:
         cleaned[date_col] = pd.to_datetime(cleaned[date_col], dayfirst=True, errors="coerce")
+
+    wrong_purchase_year_mask = cleaned["purchase_date"].dt.year.lt(2020).fillna(False)
+    wrong_sale_year_mask = cleaned["sale_date"].dt.year.lt(2020).fillna(False)
+    if wrong_purchase_year_mask.any():
+        cleaned.loc[wrong_purchase_year_mask, "purchase_date"] = _force_year(cleaned.loc[wrong_purchase_year_mask, "purchase_date"], 2023)
+    if wrong_sale_year_mask.any():
+        cleaned.loc[wrong_sale_year_mask, "sale_date"] = _force_year(cleaned.loc[wrong_sale_year_mask, "sale_date"], 2023)
 
     cleaned["purchase_price"] = _coerce_numeric(cleaned["purchase_price"], default=0.0)
     cleaned["sale_price"] = _coerce_numeric(cleaned["sale_price"])

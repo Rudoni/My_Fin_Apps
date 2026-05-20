@@ -41,10 +41,18 @@ def read_cors_origins() -> list[str]:
     return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
 
 
+def read_cors_origin_regex() -> str | None:
+    raw_value = os.getenv("MY_FIN_APPS_CORS_ORIGIN_REGEX", "").strip()
+    if raw_value:
+        return raw_value
+    return r"^https://.*\.vercel\.app$"
+
+
 load_dotenv()
 
 DATABASE_URL = read_database_url()
 API_KEY = os.getenv("MY_FIN_APPS_API_KEY") or os.getenv("VITE_API_KEY") or ""
 CORS_ORIGINS = read_cors_origins()
+CORS_ORIGIN_REGEX = read_cors_origin_regex()
 API_TITLE = "My Fin Apps API"
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MY_FIN_APPS_MAX_UPLOAD_SIZE_MB", "5"))

@@ -19,6 +19,10 @@ body {
     linear-gradient(135deg, #f7f0df 0%, #e8efe6 100%);
 }
 
+#root {
+  min-height: 100vh;
+}
+
 .app-frame {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -39,6 +43,7 @@ body {
   background: rgba(255, 252, 244, 0.76);
   backdrop-filter: blur(18px);
   transition: padding 0.18s ease;
+  z-index: 30;
 }
 
 .sidebar.collapsed {
@@ -50,6 +55,12 @@ body {
   align-items: center;
   gap: 12px;
   margin-bottom: 28px;
+}
+
+.mobile-topbar,
+.mobile-nav-backdrop,
+.mobile-close-button {
+  display: none;
 }
 
 .brand-copy.hidden,
@@ -176,6 +187,10 @@ textarea {
   backdrop-filter: blur(20px);
 }
 
+.compact-hero {
+  align-items: flex-start;
+}
+
 .hero > div,
 .content-grid > *,
 .metric-grid > *,
@@ -215,6 +230,24 @@ h1 {
   gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.brocante-view-switcher {
+  width: 100%;
+}
+
+.brocante-hero-copy {
+  width: 100%;
+}
+
+.brocante-switcher-panel {
+  padding: 14px;
+}
+
+.brocante-switcher-panel .brocante-view-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .metric-grid {
@@ -319,6 +352,82 @@ h1 {
 .modal-form textarea {
   min-height: 88px;
   resize: vertical;
+}
+
+.mobile-metric-stack,
+.mobile-form-stack,
+.mobile-inventory-list {
+  display: grid;
+  gap: 14px;
+}
+
+.mobile-item-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(23, 33, 29, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 252, 244, 0.92);
+}
+
+.mobile-item-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-item-card-head strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.mobile-item-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mobile-item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mobile-item-grid span {
+  display: block;
+  color: #68756f;
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+}
+
+.mobile-item-grid strong {
+  display: block;
+  font-size: 0.98rem;
+  line-height: 1.3;
+}
+
+.mobile-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mobile-card-actions .ghost-button,
+.mobile-card-actions .danger-button,
+.mobile-item-card-head .ghost-button {
+  width: auto;
+}
+
+.mobile-list-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.mobile-list-toolbar {
+  display: grid;
+  gap: 14px;
 }
 
 .form-panel {
@@ -987,13 +1096,109 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .app-frame.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .app-content {
+    min-width: 0;
+    padding-top: 78px;
+  }
+
+  .mobile-topbar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(23, 33, 29, 0.12);
+    background: rgba(255, 252, 244, 0.86);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .mobile-topbar-brand span {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 14px;
+    color: #fffaf0;
+    background: #17211d;
+    font-weight: 900;
+    flex: 0 0 auto;
+  }
+
+  .mobile-topbar-brand strong,
+  .mobile-topbar-brand small {
+    display: block;
+  }
+
+  .mobile-topbar-brand small {
+    color: #68756f;
+  }
+
+  .mobile-topbar-button {
+    flex: 0 0 auto;
+  }
+
+  .mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: block;
+    border: 0;
+    background: rgba(23, 33, 29, 0.34);
+    backdrop-filter: blur(3px);
+  }
+
   .sidebar {
-    position: static;
-    height: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(86vw, 320px);
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease, padding 0.18s ease;
+    overflow-y: auto;
+    box-shadow: 0 24px 80px rgba(23, 33, 29, 0.2);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: min(86vw, 320px);
+    padding: 24px;
+  }
+
+  .sidebar.collapsed .nav-item {
+    justify-content: flex-start;
+    padding: 13px 14px;
+  }
+
+  .sidebar.collapsed .brand-copy,
+  .sidebar.collapsed .nav-label {
+    display: block;
+  }
+
+  .mobile-close-button {
+    display: inline-flex;
+    margin-left: auto;
   }
 
   .sidebar nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .hero,
@@ -1033,8 +1238,166 @@ th {
     flex-direction: column;
   }
 
+  .page-shell {
+    gap: 20px;
+    padding: 16px 14px 32px;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px 16px;
+    border-radius: 22px;
+    box-shadow: 0 14px 40px rgba(31, 41, 55, 0.08);
+  }
+
+  .hero > div,
+  .hero-actions,
+  .compact-hero {
+    width: 100%;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
+    line-height: 0.94;
+  }
+
+  .compact-hero h1 {
+    font-size: clamp(2.2rem, 12vw, 3.2rem);
+  }
+
+  .hero p:last-child {
+    max-width: none;
+    margin-top: 12px;
+    font-size: 0.98rem;
+  }
+
+  .metric-grid {
+    gap: 14px;
+  }
+
+  .metric-card,
+  .panel {
+    border-radius: 20px;
+  }
+
+  .metric-card,
+  .panel {
+    padding: 18px;
+  }
+
+  .dashboard-flow-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .brocante-view-switcher .primary-button,
+  .brocante-view-switcher .ghost-button {
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .table-footer,
+  .pagination-actions,
+  .inline-form-actions,
+  .settings-toggle-row,
+  .dashboard-pill-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .year-filter summary,
+  .search-field,
+  .filter-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-scroll {
+    margin: 0 -6px;
+    padding: 0 6px 4px;
+  }
+
   .search-field {
     min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-frame.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-topbar {
+    padding: 12px 14px;
+  }
+
+  .mobile-topbar-brand strong {
+    font-size: 1.02rem;
+  }
+
+  .mobile-topbar-brand small {
+    font-size: 0.88rem;
+  }
+
+  .page-shell {
+    gap: 16px;
+    padding: 14px 12px 26px;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .metric-card {
+    padding: 16px 14px;
+  }
+
+  .metric-card strong {
+    margin-top: 6px;
+    font-size: 1.3rem;
+  }
+
+  .metric-card span,
+  .metric-card small {
+    font-size: 0.84rem;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .brocante-view-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .brocante-switcher-panel {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 16px 14px;
+  }
+
+  .hero p:last-child {
+    font-size: 0.95rem;
+  }
+
+  .brocante-view-switcher .primary-button,
+  .brocante-view-switcher .ghost-button {
+    width: 100%;
+  }
+
+  .dashboard-flow-summary {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1064,5 +1427,294 @@ th {
 
   .patrimony-mosaic-card.featured {
     grid-column: span 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-frame {
+    grid-template-columns: 1fr;
+  }
+
+  .app-content {
+    min-width: 0;
+    padding-top: 78px;
+  }
+
+  .mobile-topbar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(23, 33, 29, 0.12);
+    background: rgba(255, 252, 244, 0.86);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .mobile-topbar-brand span {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 14px;
+    color: #fffaf0;
+    background: #17211d;
+    font-weight: 900;
+    flex: 0 0 auto;
+  }
+
+  .mobile-topbar-brand strong,
+  .mobile-topbar-brand small {
+    display: block;
+  }
+
+  .mobile-topbar-brand small {
+    color: #68756f;
+  }
+
+  .mobile-topbar-button {
+    flex: 0 0 auto;
+  }
+
+  .mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: block;
+    border: 0;
+    background: rgba(23, 33, 29, 0.34);
+    backdrop-filter: blur(3px);
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(86vw, 320px);
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease, padding 0.18s ease;
+    overflow-y: auto;
+    box-shadow: 0 24px 80px rgba(23, 33, 29, 0.2);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: min(86vw, 320px);
+    padding: 24px;
+  }
+
+  .sidebar.collapsed .nav-item {
+    justify-content: flex-start;
+    padding: 13px 14px;
+  }
+
+  .sidebar.collapsed .brand-copy,
+  .sidebar.collapsed .nav-label {
+    display: block;
+  }
+
+  .mobile-close-button {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  .sidebar nav,
+  .metric-grid,
+  .content-grid,
+  .opportunity-card,
+  .settings-grid,
+  .patrimony-mosaic,
+  .dashboard-hero-grid,
+  .dashboard-rhythm-grid,
+  .dashboard-three-up,
+  .three-col,
+  .wide-right,
+  .dashboard-flow-summary,
+  .brocante-view-switcher,
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hero,
+  .hero-actions,
+  .table-toolbar,
+  .filters,
+  .table-footer,
+  .pagination-actions,
+  .inline-form-actions,
+  .settings-toggle-row,
+  .dashboard-pill-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-shell {
+    gap: 20px;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 16px 14px 32px;
+  }
+
+  .page-shell > *,
+  .hero,
+  .panel,
+  .metric-card,
+  .table-panel,
+  .chart-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px 16px;
+    border-radius: 22px;
+    box-shadow: 0 14px 40px rgba(31, 41, 55, 0.08);
+  }
+
+  .hero > div,
+  .hero-actions,
+  .compact-hero {
+    width: 100%;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
+    line-height: 0.94;
+  }
+
+  .compact-hero h1 {
+    font-size: clamp(2.2rem, 12vw, 3.2rem);
+  }
+
+  .hero p:last-child {
+    max-width: none;
+    margin-top: 12px;
+    font-size: 0.98rem;
+  }
+
+  .metric-grid {
+    gap: 14px;
+  }
+
+  .metric-card,
+  .panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .year-filter summary,
+  .search-field,
+  .filter-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .year-filter-panel {
+    left: 0;
+    right: auto;
+    width: min(280px, calc(100vw - 64px));
+  }
+
+  .table-scroll {
+    margin: 0 -6px;
+    padding: 0 6px 4px;
+  }
+
+  .search-field {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .mobile-topbar {
+    padding: 12px 14px;
+  }
+
+  .mobile-topbar-brand strong {
+    font-size: 1.02rem;
+  }
+
+  .mobile-topbar-brand small {
+    font-size: 0.88rem;
+  }
+
+  .page-shell {
+    gap: 16px;
+    padding: 14px 12px 26px;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .metric-card {
+    padding: 16px 14px;
+  }
+
+  .metric-card strong {
+    margin-top: 6px;
+    font-size: 1.3rem;
+  }
+
+  .metric-card span,
+  .metric-card small {
+    font-size: 0.84rem;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .brocante-view-switcher .primary-button,
+  .brocante-view-switcher .ghost-button {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .hero {
+    padding: 16px 14px;
+  }
+
+  .hero p:last-child {
+    font-size: 0.95rem;
+  }
+
+  .mobile-item-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-item-card-head,
+  .mobile-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-item-card-head .ghost-button,
+  .mobile-card-actions .ghost-button,
+  .mobile-card-actions .danger-button {
+    width: 100%;
   }
 }

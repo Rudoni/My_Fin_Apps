@@ -18,6 +18,7 @@ import {
 } from "../api/brocante";
 import { MetricCard } from "../components/MetricCard";
 import { Modal } from "../components/Modal";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 const euroFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const today = new Date().toISOString().slice(0, 10);
@@ -70,6 +71,7 @@ const emptyMovementForm = {
 };
 
 export function BrocantePage() {
+  const isMobile = useIsMobile();
   const [view, setView] = useState<BrocanteView>("bulk");
   const [summary, setSummary] = useState<BrocanteSummary | null>(null);
   const [items, setItems] = useState<BrocanteItem[]>([]);
@@ -331,20 +333,142 @@ export function BrocantePage() {
     value: chartNumber(row.value),
   }));
 
+  function renderMobileInventoryCard(item: BrocanteItem) {
+    if (view === "binder") {
+      const realizedValue = item.stock_quantity > 0 ? item.unrealized_pnl : item.realized_pnl;
+      const saleDraft = getBinderSaleDraft(item);
+
+      return (
+        <article key={item.brocante_item_id} className="mobile-item-card">
+          <div className="mobile-item-card-head">
+            <div>
+              <strong>{item.name}</strong>
+              <div className="mobile-item-badges">
+                <span className="status-pill">{ownershipLabel(item.ownership_mode)}</span>
+                <span className="status-pill">{item.stock_quantity > 0 ? "En stock" : "Vendu"}</span>
+              </div>
+            </div>
+            <button type="button" className="ghost-button" onClick={() => openBinderSaleModal(item)}>
+              {item.stock_quantity > 0 ? "Vendre" : "Maj vente"}
+            </button>
+          </div>
+
+          <div className="mobile-item-grid">
+            <div>
+              <span>Achat</span>
+              <strong>{money(item.purchase_total)}</strong>
+            </div>
+            <div>
+              <span>Date achat</span>
+              <strong>{item.last_purchase_date ?? "-"}</strong>
+            </div>
+            <div>
+              <span>Prix cible</span>
+              <strong>{money(item.target_sale_unit_price)}</strong>
+            </div>
+            <div>
+              <span>Prix vendu</span>
+              <strong>{item.stock_quantity > 0 ? "-" : money(saleDraft.total_amount || item.sales_total)}</strong>
+            </div>
+            <div>
+              <span>Date vente</span>
+              <strong>{item.stock_quantity > 0 ? "-" : (item.last_sale_date ?? saleDraft.movement_date ?? "-")}</strong>
+            </div>
+            <div>
+              <span>P/L</span>
+              <strong className={Number(realizedValue) >= 0 ? "positive" : "negative"}>{money(realizedValue)}</strong>
+            </div>
+          </div>
+
+          <div className="mobile-card-actions">
+            <button type="button" className="ghost-button" onClick={() => openEdit(item)}>
+              <Pencil size={16} />
+              Modifier
+            </button>
+            <button className="danger-button" type="button" onClick={() => setItemToDelete(item)}>
+              <Trash2 size={16} />
+              Supprimer
+            </button>
+          </div>
+        </article>
+      );
+    }
+
+    return (
+      <article key={item.brocante_item_id} className="mobile-item-card">
+        <div className="mobile-item-card-head">
+          <div>
+            <strong>{item.name}</strong>
+            <div className="mobile-item-badges">
+              <span className="status-pill">{ownershipLabel(item.ownership_mode)}</span>
+              <span className="status-pill">{item.category}</span>
+              {item.card_type ? <span className="status-pill">{item.card_type}</span> : null}
+            </div>
+          </div>
+          <button type="button" className="ghost-button" onClick={() => openEdit(item)}>
+            <Pencil size={16} />
+            Modifier
+          </button>
+        </div>
+
+        <div className="mobile-item-grid">
+          <div>
+            <span>Stock</span>
+            <strong>{item.stock_quantity}</strong>
+          </div>
+          <div>
+            <span>PRU</span>
+            <strong>{money(item.average_buy_unit_price)}</strong>
+          </div>
+          <div>
+            <span>Prix cible</span>
+            <strong>{money(item.target_sale_unit_price)}</strong>
+          </div>
+          <div>
+            <span>Coût stock</span>
+            <strong>{money(item.remaining_cost_basis)}</strong>
+          </div>
+          <div>
+            <span>Valeur cible</span>
+            <strong>{money(item.target_stock_value)}</strong>
+          </div>
+          <div>
+            <span>P/L réalisée</span>
+            <strong className={Number(item.realized_pnl) >= 0 ? "positive" : "negative"}>{money(item.realized_pnl)}</strong>
+          </div>
+          <div>
+            <span>P/L latente</span>
+            <strong className={Number(item.unrealized_pnl) >= 0 ? "positive" : "negative"}>{money(item.unrealized_pnl)}</strong>
+          </div>
+        </div>
+
+        <div className="mobile-card-actions">
+          <button className="danger-button" type="button" onClick={() => setItemToDelete(item)}>
+            <Trash2 size={16} />
+            Supprimer
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <main className="page-shell">
       <header className="hero compact-hero">
-        <div>
+        <div className="brocante-hero-copy">
           <p className="eyebrow">Stock agrégé</p>
           <h1>{viewTitle}</h1>
           <p>{viewDescription}</p>
         </div>
-        <div className="hero-actions">
+      </header>
+
+      <section className="panel brocante-switcher-panel">
+        <div className="brocante-view-switcher">
           <button className={view === "bulk" ? "primary-button" : "ghost-button"} type="button" onClick={() => setView("bulk")}>Stock</button>
           <button className={view === "binder" ? "primary-button" : "ghost-button"} type="button" onClick={() => setView("binder")}><Sparkles size={16} /> Binder</button>
           <button className={view === "settings" ? "primary-button" : "ghost-button"} type="button" onClick={() => setView("settings")}><Settings2 size={16} /> Paramètres</button>
         </div>
-      </header>
+      </section>
 
       {error ? <div className="error-box">{error}</div> : null}
 
@@ -377,6 +501,210 @@ export function BrocantePage() {
             </div>
           </section>
         </section>
+      ) : isMobile ? (
+        <>
+          <section className="mobile-metric-stack">
+            <MetricCard label="Références" value={`${summary?.reference_count ?? 0}`} />
+            <MetricCard label="Stock restant" value={`${summary?.stock_quantity ?? 0}`} />
+            <MetricCard label="Valeur cible stock" value={money(summary?.target_stock_value)} />
+            <MetricCard label="P/L latente" value={money(summary?.unrealized_pnl)} hint="Basée sur ton prix de vente cible" />
+            <MetricCard label="Achats cumulés" value={money(summary?.purchase_total)} />
+            <MetricCard label="Ventes cumulées" value={money(summary?.sales_total)} />
+            <MetricCard label="P/L réalisée" value={money(summary?.realized_pnl)} />
+            <MetricCard
+              label="PRU moyen"
+              value={items.length ? money(String(items.reduce((acc, item) => acc + Number(item.average_buy_unit_price || 0), 0) / items.length)) : money("0")}
+            />
+            <MetricCard
+              label="Seuil de rentabilité"
+              value={Number(summary?.break_even_remaining ?? 0) > 0 ? money(summary?.break_even_remaining) : "Atteint"}
+              hint={Number(summary?.break_even_remaining ?? 0) > 0 ? "Encore à encaisser pour couvrir ta mise" : "La mise est déjà remboursée"}
+            />
+            <MetricCard
+              label="Couverture de mise"
+              value={percent(summary?.break_even_progress_pct)}
+              hint={summary?.break_even_possible_with_target ? "Rentable si le stock part au prix cible" : "Le prix cible actuel ne couvre pas encore la mise"}
+            />
+          </section>
+
+          <section className="panel chart-panel full-width-section">
+            <div className="section-title">P/L réalisée par jour · mois en cours</div>
+            <p className="section-copy">Vision rapide de la plus-value encaissée sur le mois actuel.</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={currentMonthDailyRealizedChart}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip
+                  labelFormatter={(_value, payload) => (payload?.[0]?.payload?.fullDate ? String(payload[0].payload.fullDate) : "")}
+                  formatter={(value) => money(String(value))}
+                />
+                <Bar dataKey="value" fill="#4f46e5" radius={[8, 8, 0, 0]} isAnimationActive={false} />
+              </BarChart>
+            </ResponsiveContainer>
+          </section>
+
+          {view === "binder" ? (
+            <section className="mobile-form-stack">
+              <form className="panel form-panel" onSubmit={(event) => void submitBinderCard(event)}>
+                <div className="section-title">
+                  <Sparkles size={18} />
+                  Ajouter une carte binder
+                </div>
+                <label>
+                  Nom de la carte
+                  <input value={binderForm.name} onChange={(event) => setBinderForm({ ...binderForm, name: event.target.value })} placeholder="Dracaufeu, Pikachu Van Gogh..." />
+                </label>
+                <label>
+                  Part
+                  <select value={binderForm.ownership_mode} onChange={(event) => setBinderForm({ ...binderForm, ownership_mode: event.target.value })}>
+                    <option value="solo">Solo</option>
+                    <option value="common">Commun</option>
+                  </select>
+                </label>
+                <label>
+                  Prix d'achat
+                  <input type="number" value={binderForm.purchase_price} onChange={(event) => setBinderForm({ ...binderForm, purchase_price: event.target.value })} />
+                </label>
+                <label>
+                  Prix de vente désiré
+                  <input type="number" value={binderForm.target_sale_unit_price} onChange={(event) => setBinderForm({ ...binderForm, target_sale_unit_price: event.target.value })} />
+                </label>
+                <label>
+                  Date d'achat
+                  <input type="date" value={binderForm.purchase_date} onChange={(event) => setBinderForm({ ...binderForm, purchase_date: event.target.value })} />
+                </label>
+                <button className="primary-button">Ajouter la carte</button>
+              </form>
+            </section>
+          ) : (
+            <section className="mobile-form-stack">
+              <form className="panel form-panel" onSubmit={(event) => void submitReference(event)}>
+                <div className="section-title">
+                  <Plus size={18} />
+                  Ajouter une référence
+                </div>
+                <label>
+                  Catégorie
+                  <select value={referenceForm.brocante_category_id} onChange={(event) => setReferenceForm({ ...referenceForm, brocante_category_id: Number(event.target.value) })}>
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Nom de référence
+                  <input value={referenceForm.name} onChange={(event) => setReferenceForm({ ...referenceForm, name: event.target.value })} placeholder="Dracaufeu holo, Pikachu lot..." />
+                </label>
+                <label>
+                  Part
+                  <select value={referenceForm.ownership_mode} onChange={(event) => setReferenceForm({ ...referenceForm, ownership_mode: event.target.value })}>
+                    <option value="solo">Solo</option>
+                    <option value="common">Commun</option>
+                  </select>
+                </label>
+                <label>
+                  Type de carte
+                  <input value={referenceForm.card_type} onChange={(event) => setReferenceForm({ ...referenceForm, card_type: event.target.value })} placeholder="Holo, Reverse, Lot, Commune..." />
+                </label>
+                <label>
+                  Prix cible / ex
+                  <input type="number" value={referenceForm.target_sale_unit_price} onChange={(event) => setReferenceForm({ ...referenceForm, target_sale_unit_price: event.target.value })} />
+                </label>
+                <label>
+                  Prix mini / ex
+                  <input type="number" value={referenceForm.minimum_sale_unit_price} onChange={(event) => setReferenceForm({ ...referenceForm, minimum_sale_unit_price: event.target.value })} />
+                </label>
+                <button className="primary-button">Créer la référence</button>
+              </form>
+
+              <form className="panel form-panel" onSubmit={(event) => void submitPurchase(event)}>
+                <div className="section-title">
+                  <ShoppingBag size={18} />
+                  Enregistrer un achat
+                </div>
+                <label>
+                  Référence
+                  <select value={purchaseForm.brocante_item_id} onChange={(event) => setPurchaseForm({ ...purchaseForm, brocante_item_id: Number(event.target.value) })}>
+                    {items.map((item) => <option key={item.brocante_item_id} value={item.brocante_item_id}>{item.name} · {item.category}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Quantité achetée
+                  <input type="number" min={1} value={purchaseForm.quantity} onChange={(event) => setPurchaseForm({ ...purchaseForm, quantity: Number(event.target.value) })} />
+                </label>
+                <label>
+                  Prix total payé
+                  <input type="number" value={purchaseForm.total_amount} onChange={(event) => setPurchaseForm({ ...purchaseForm, total_amount: event.target.value })} />
+                </label>
+                <label>
+                  Date achat
+                  <input type="date" value={purchaseForm.movement_date} onChange={(event) => setPurchaseForm({ ...purchaseForm, movement_date: event.target.value })} />
+                </label>
+                <button className="primary-button">Ajouter l'achat</button>
+              </form>
+
+              <form className="panel form-panel" onSubmit={(event) => void submitSale(event)}>
+                <div className="section-title">Enregistrer une vente</div>
+                <label>
+                  Référence
+                  <select value={saleForm.brocante_item_id} onChange={(event) => setSaleForm({ ...saleForm, brocante_item_id: Number(event.target.value) })}>
+                    {items.filter((item) => item.stock_quantity > 0).map((item) => <option key={item.brocante_item_id} value={item.brocante_item_id}>{item.name} · stock {item.stock_quantity}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Quantité vendue
+                  <input type="number" min={1} value={saleForm.quantity} onChange={(event) => setSaleForm({ ...saleForm, quantity: Number(event.target.value) })} />
+                </label>
+                <label>
+                  Prix total vendu
+                  <input type="number" value={saleForm.total_amount} onChange={(event) => setSaleForm({ ...saleForm, total_amount: event.target.value })} />
+                </label>
+                <label>
+                  Date vente
+                  <input type="date" value={saleForm.movement_date} onChange={(event) => setSaleForm({ ...saleForm, movement_date: event.target.value })} />
+                </label>
+                <button className="primary-button">Ajouter la vente</button>
+              </form>
+            </section>
+          )}
+
+          <section className="panel mobile-list-panel">
+            <div className="mobile-list-toolbar">
+              <div className="section-title">{view === "binder" ? "Inventaire binder" : "Références brocante"}</div>
+              <div className="filters">
+                <label className="search-field">
+                  <Search size={16} />
+                  <input placeholder="Rechercher..." value={search} onChange={(event) => setSearch(event.target.value)} />
+                </label>
+                {view === "binder" ? (
+                  <select value={binderStatusFilter} onChange={(event) => setBinderStatusFilter(event.target.value as BinderStatusFilter)}>
+                    <option value="all">Tous statuts</option>
+                    <option value="available">En stock</option>
+                    <option value="sold">Vendu</option>
+                  </select>
+                ) : (
+                  <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+                    <option value="">Toutes catégories</option>
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="mobile-inventory-list">
+              {paginatedItems.map((item) => renderMobileInventoryCard(item))}
+            </div>
+
+            {filteredItems.length > BROCANTE_PAGE_SIZE ? (
+              <div className="table-footer">
+                <span>{filteredItems.length} lignes · page {currentPage} / {totalPages}</span>
+                <div className="pagination-actions">
+                  <button className="ghost-button" type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>Prec.</button>
+                  <button className="ghost-button" type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>Suiv.</button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        </>
       ) : (
         <>
           <section className="metric-grid">

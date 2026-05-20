@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { BarChart3, Boxes, Coins, Eye, EyeOff, Home, PanelLeftClose, PanelLeftOpen, ReceiptText, Settings } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { BarChart3, Boxes, Coins, Eye, EyeOff, Home, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, Settings, X } from "lucide-react";
 
 export type AppPage = "dashboard" | "expenses" | "resale" | "brocante" | "patrimony" | "settings";
 
@@ -33,17 +33,41 @@ export function AppLayout({
   onTogglePrivacyMode,
   children,
 }: AppLayoutProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const visibleNavItems = brocanteFocusMode ? navItems.filter((item) => item.id === "brocante" || item.id === "settings") : navItems;
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [page]);
 
   return (
     <div className={privacyMode ? `app-frame privacy-mode${sidebarCollapsed ? " sidebar-collapsed" : ""}` : `app-frame${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <aside className={sidebarCollapsed ? "sidebar collapsed" : "sidebar"}>
+      <div className="mobile-topbar">
+        <button className="icon-button mobile-topbar-button" type="button" onClick={() => setMobileNavOpen(true)} aria-label="Ouvrir le menu">
+          <Menu size={18} />
+        </button>
+        <div className="mobile-topbar-brand">
+          <span>MF</span>
+          <div>
+            <strong>My Fin Apps</strong>
+            <small>Pilotage perso</small>
+          </div>
+        </div>
+        <button className="icon-button mobile-topbar-button" type="button" onClick={onTogglePrivacyMode} aria-label={privacyMode ? "Réafficher les chiffres" : "Masquer les chiffres"}>
+          {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+      {mobileNavOpen ? <button className="mobile-nav-backdrop" type="button" aria-label="Fermer le menu" onClick={() => setMobileNavOpen(false)} /> : null}
+      <aside className={`${sidebarCollapsed ? "sidebar collapsed" : "sidebar"}${mobileNavOpen ? " mobile-open" : ""}`}>
         <div className="brand">
           <span>MF</span>
           <div className={sidebarCollapsed ? "brand-copy hidden" : "brand-copy"}>
             <strong>My Fin Apps</strong>
             <small>Pilotage perso</small>
           </div>
+          <button className="icon-button mobile-close-button" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Fermer le menu">
+            <X size={18} />
+          </button>
         </div>
         <button className="icon-button sidebar-collapse-toggle" type="button" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? "Ouvrir le menu" : "Ranger le menu"}>
           {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -59,7 +83,10 @@ export function AppLayout({
             <button
               key={item.id}
               className={page === item.id ? "nav-item active" : "nav-item"}
-              onClick={() => onPageChange(item.id)}
+              onClick={() => {
+                onPageChange(item.id);
+                setMobileNavOpen(false);
+              }}
               title={sidebarCollapsed ? item.label : undefined}
             >
               {item.icon}

@@ -132,6 +132,10 @@ body {
   min-width: 0;
 }
 
+.mobile-bottom-nav {
+  display: none;
+}
+
 .privacy-mode .metric-card strong,
 .privacy-mode .metric-card small {
   filter: blur(8px);
@@ -428,6 +432,27 @@ h1 {
 .mobile-list-toolbar {
   display: grid;
   gap: 14px;
+}
+
+.mobile-switcher-panel {
+  padding: 12px;
+}
+
+.mobile-section-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mobile-note-card {
+  display: grid;
+  gap: 10px;
 }
 
 .form-panel {
@@ -901,6 +926,14 @@ th {
   background: #fee2e2;
 }
 
+.success-box {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: #14532d;
+  background: #dcfce7;
+}
+
 .page-loader {
   display: grid;
   gap: 10px;
@@ -971,6 +1004,11 @@ th {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 0 0;
+}
+
+.settings-action-stack {
+  display: grid;
+  gap: 10px;
 }
 
 .modal-backdrop {
@@ -1103,6 +1141,7 @@ th {
   .app-content {
     min-width: 0;
     padding-top: 78px;
+    padding-bottom: 92px;
   }
 
   .mobile-topbar {
@@ -1149,6 +1188,45 @@ th {
 
   .mobile-topbar-button {
     flex: 0 0 auto;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    inset: auto 12px 12px;
+    z-index: 35;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(23, 33, 29, 0.12);
+    border-radius: 22px;
+    background: rgba(255, 252, 244, 0.92);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 18px 40px rgba(23, 33, 29, 0.16);
+  }
+
+  .mobile-bottom-item {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    border: 0;
+    border-radius: 16px;
+    color: #53615b;
+    background: transparent;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .mobile-bottom-item span {
+    font-size: 0.7rem;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .mobile-bottom-item.active {
+    color: #17211d;
+    background: rgba(15, 118, 110, 0.12);
   }
 
   .mobile-nav-backdrop {
@@ -1702,6 +1780,20 @@ th {
     font-size: 0.95rem;
   }
 
+  .mobile-bottom-nav {
+    inset: auto 10px 10px;
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .mobile-bottom-item {
+    padding: 8px 2px;
+  }
+
+  .mobile-bottom-item span {
+    font-size: 0.66rem;
+  }
+
   .mobile-item-grid {
     grid-template-columns: 1fr;
   }
@@ -1716,5 +1808,10 @@ th {
   .mobile-card-actions .ghost-button,
   .mobile-card-actions .danger-button {
     width: 100%;
+  }
+
+  .mobile-section-switcher,
+  .mobile-summary-strip {
+    grid-template-columns: 1fr;
   }
 }

@@ -4,6 +4,7 @@ import { getDashboardSummary, DashboardSummary } from "../api/dashboard";
 import { getBudgetYears } from "../api/budget";
 import { getResaleYears } from "../api/resale";
 import { YearFilter } from "../components/YearFilter";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 const euroFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const percentFormatter = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -29,6 +30,7 @@ function monthLabel(value: string) {
 }
 
 export function DashboardPage() {
+  const isMobile = useIsMobile();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -139,6 +141,15 @@ export function DashboardPage() {
 
       {error ? <div className="error-box">{error}</div> : null}
 
+      {isMobile ? (
+        <section className="panel mobile-note-card">
+          <div className="section-title">Mode mobile</div>
+          <p className="section-copy">
+            Ici tu gardes l’essentiel sous la main. Pour le pilotage complet et les comparaisons fines, la vue desktop reste la plus confortable.
+          </p>
+        </section>
+      ) : null}
+
       <section className="dashboard-hero-grid">
         <article className="panel dashboard-spotlight">
           <p className="eyebrow">Vue d'ensemble</p>
@@ -193,6 +204,49 @@ export function DashboardPage() {
         </article>
       </section>
 
+      {isMobile ? (
+        <>
+          <section className="panel table-panel">
+            <div className="section-title">Lecture rapide</div>
+            <div className="dashboard-reading-list">
+              <div className="dashboard-reading-item">
+                <span>Patrimoine total</span>
+                <strong>{money(patrimony)}</strong>
+              </div>
+              <div className="dashboard-reading-item">
+                <span>Reste après allocation</span>
+                <strong>{money(freeCash)}</strong>
+              </div>
+              <div className="dashboard-reading-item">
+                <span>Cashflow enrichi</span>
+                <strong>{money(cashflow)}</strong>
+              </div>
+              <div className="dashboard-reading-item">
+                <span>Effort d’investissement</span>
+                <strong>{money(investmentEffort)}</strong>
+              </div>
+              <div className="dashboard-reading-item">
+                <span>Stock revente</span>
+                <strong>{money(resaleStock)}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel chart-panel">
+            <div className="section-title">Évolution du patrimoine</div>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={patrimonyTimeline}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" />
+                <YAxis />
+                <Tooltip formatter={(value) => money(String(value))} />
+                <Line type="monotone" dataKey="Patrimoine" stroke="#0f766e" strokeWidth={3} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="Investi" stroke="#17211d" strokeWidth={2} dot={false} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </section>
+        </>
+      ) : (
       <section className="content-grid wide-right">
         <section className="panel chart-panel">
           <div className="section-title">Flux mensuels</div>
@@ -286,7 +340,9 @@ export function DashboardPage() {
           </ResponsiveContainer>
         </section>
       </section>
+      )}
 
+      {!isMobile ? (
       <section className="dashboard-three-up">
         <article className="panel dashboard-insight-card">
           <p className="eyebrow">Train de vie</p>
@@ -304,7 +360,9 @@ export function DashboardPage() {
           <p>Valeur estimée encore immobilisée dans le stock achat-revente.</p>
         </article>
       </section>
+      ) : null}
 
+      {!isMobile ? (
       <section className="content-grid wide-right">
         <section className="panel table-panel">
           <div className="section-title">Patrimoine par bloc</div>
@@ -372,7 +430,9 @@ export function DashboardPage() {
           </div>
         </section>
       </section>
+      ) : null}
 
+      {!isMobile ? (
       <section className="panel chart-panel full-width-section">
         <div className="section-title">Évolution du patrimoine</div>
         <p className="section-copy">Lecture mensuelle du début de ton historique jusqu'à aujourd'hui, avec la valeur totale, le capital encore investi et tout ce que tu as injecté en cumulé.</p>
@@ -389,6 +449,7 @@ export function DashboardPage() {
           </LineChart>
         </ResponsiveContainer>
       </section>
+      ) : null}
     </main>
   );
 }

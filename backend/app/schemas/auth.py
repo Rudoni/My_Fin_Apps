@@ -29,3 +29,12 @@ class AuthSessionRead(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class ChangePasswordPayload(BaseModel):
+    current_password: str = Field(min_length=8, max_length=200)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+class UpdateProfilePayload(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)

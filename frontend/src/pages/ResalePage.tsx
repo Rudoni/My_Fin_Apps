@@ -1,6 +1,6 @@
 import { FormEvent, useDeferredValue, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search, Trash2 } from "lucide-react";
 import {
   createResaleItem,
   deleteResaleItem,
@@ -16,6 +16,7 @@ import {
 import { MetricCard } from "../components/MetricCard";
 import { Modal } from "../components/Modal";
 import { YearFilter } from "../components/YearFilter";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { ResaleCreateForm } from "./resale/ResaleCreateForm";
 import { ResaleItemsTable } from "./resale/ResaleItemsTable";
 
@@ -54,8 +55,10 @@ const emptyForm = {
 };
 
 const RESALE_PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+type MobileResaleSection = "capture" | "inventory" | "pilotage";
 
 export function ResalePage() {
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<ResaleItem[]>([]);
   const [summary, setSummary] = useState<ResaleSummary | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
@@ -75,6 +78,7 @@ export function ResalePage() {
   const [pageSize, setPageSize] = useState(50);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mobileSection, setMobileSection] = useState<MobileResaleSection>("capture");
   const deferredSearch = useDeferredValue(search);
 
   async function loadStaticData() {
@@ -227,6 +231,62 @@ export function ResalePage() {
   const pageStart = (currentPage - 1) * pageSize;
   const paginatedItems = items.slice(pageStart, pageStart + pageSize);
 
+  function renderMobileResaleCard(item: ResaleItem) {
+    return (
+      <article key={item.resale_item_id} className="mobile-item-card">
+        <div className="mobile-item-card-head">
+          <div>
+            <strong>{item.pair_name}</strong>
+            <div className="mobile-item-badges">
+              <span className="status-pill">{item.resale_category}</span>
+              <span className="status-pill">{item.status}</span>
+            </div>
+          </div>
+          {item.status !== "Vendu" ? (
+            <button type="button" className="ghost-button" onClick={() => openSale(item)}>
+              Vendu
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mobile-item-grid">
+          <div>
+            <span>Prix payé</span>
+            <strong>{money(item.purchase_price)}</strong>
+          </div>
+          <div>
+            <span>Prix attendu</span>
+            <strong>{money(item.expected_price)}</strong>
+          </div>
+          <div>
+            <span>Prix vente</span>
+            <strong>{money(item.sale_price)}</strong>
+          </div>
+          <div>
+            <span>Bénéfice</span>
+            <strong className={Number(item.benefit) >= 0 ? "positive" : "negative"}>{money(item.benefit)}</strong>
+          </div>
+          <div>
+            <span>P/L latente</span>
+            <strong className={Number(item.expected_benefit) >= 0 ? "positive" : "negative"}>
+              {item.status === "Vendu" ? "-" : money(item.expected_benefit)}
+            </strong>
+          </div>
+        </div>
+
+        <div className="mobile-card-actions">
+          <button type="button" className="ghost-button" onClick={() => openEdit(item)}>
+            Modifier
+          </button>
+          <button className="danger-button" type="button" onClick={() => setItemToDelete(item)}>
+            <Trash2 size={16} />
+            Supprimer
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <main className="page-shell">
       <header className="hero">
@@ -244,15 +304,40 @@ export function ResalePage() {
         </div>
       </header>
 
+      {isMobile ? (
+        <section className="panel mobile-switcher-panel">
+          <div className="mobile-section-switcher">
+            <button className={mobileSection === "capture" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("capture")}>
+              Saisir
+            </button>
+            <button className={mobileSection === "inventory" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("inventory")}>
+              Stock
+            </button>
+            <button className={mobileSection === "pilotage" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("pilotage")}>
+              Pilotage
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {error ? <div className="error-box">{error}</div> : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <section className="metric-grid">
         <MetricCard label="CA total" value={money(summary?.ca_total)} />
         <MetricCard label="Bénéfice total" value={money(summary?.benefit_total)} />
         <MetricCard label="P/L latente" value={money(summary?.unrealized_pnl)} hint="Prix attendu - prix payé sur le non vendu" />
         <MetricCard label="Stock estimé" value={money(summary?.unsold_value)} hint={`${summary?.unsold_count ?? 0} non vendus`} />
       </section>
+      ) : isMobile ? (
+        <section className="mobile-summary-strip">
+          <MetricCard label="Stock" value={money(summary?.unsold_value)} />
+          <MetricCard label="Bénéfice" value={money(summary?.benefit_total)} />
+          <MetricCard label="Non vendus" value={`${summary?.unsold_count ?? 0}`} />
+        </section>
+      ) : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <section className="content-grid">
         <section className="panel chart-panel">
           <div className="section-title">Bénéfice par mois</div>
@@ -281,7 +366,9 @@ export function ResalePage() {
           </ResponsiveContainer>
         </section>
       </section>
+      ) : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <section className="panel chart-panel full-width-section">
         <div className="section-title">P/L réalisée par jour · mois en cours</div>
         <p className="section-copy">Lecture jour par jour de la plus-value vraiment encaissée ce mois-ci.</p>
@@ -298,7 +385,9 @@ export function ResalePage() {
           </BarChart>
         </ResponsiveContainer>
       </section>
+      ) : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <section className="panel table-panel compact-table">
         <div className="section-title">Marge par catégorie</div>
         <div className="table-scroll">
@@ -330,9 +419,13 @@ export function ResalePage() {
           </table>
         </div>
       </section>
+      ) : null}
 
-      <ResaleCreateForm form={form} categories={categories} onChange={setForm} onSubmit={(event) => void handleCreate(event)} />
+      {(!isMobile || mobileSection === "capture") ? (
+        <ResaleCreateForm form={form} categories={categories} onChange={setForm} onSubmit={(event) => void handleCreate(event)} />
+      ) : null}
 
+      {(!isMobile || mobileSection === "inventory") ? (
       <ResaleItemsTable
         items={paginatedItems}
         categories={categories}
@@ -358,6 +451,44 @@ export function ResalePage() {
         onPreviousPage={() => setCurrentPage((page) => Math.max(1, page - 1))}
         onNextPage={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
       />
+      ) : null}
+
+      {isMobile && mobileSection === "inventory" ? (
+        <section className="panel mobile-list-panel">
+          <div className="mobile-list-toolbar">
+            <div className="section-title">Stock achat-revente</div>
+            <div className="filters">
+              <label className="search-field">
+                <Search size={16} />
+                <input placeholder="Rechercher..." value={search} onChange={(event) => setSearch(event.target.value)} />
+              </label>
+              <select className="filter-select" value={category} onChange={(event) => setCategory(event.target.value)}>
+                <option value="">Toutes catégories</option>
+                {categories.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+              <select className="filter-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ResaleStatusFilter)}>
+                <option value="all">Tous statuts</option>
+                <option value="available">Disponible</option>
+                <option value="sold">Vendu</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? <p>Chargement...</p> : <div className="mobile-inventory-list">{paginatedItems.map((item) => renderMobileResaleCard(item))}</div>}
+
+          {!loading && items.length > pageSize ? (
+            <div className="table-footer">
+              <span>{items.length} lignes · page {currentPage} / {totalPages}</span>
+              <div className="pagination-actions">
+                <button className="ghost-button" type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>Prec.</button>
+                <button className="ghost-button" type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>Suiv.</button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {editingItem ? (
         <Modal title="Modifier la ligne" eyebrow="Achat-revente" onClose={() => setEditingItem(null)}>

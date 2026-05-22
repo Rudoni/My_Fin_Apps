@@ -3,7 +3,15 @@ from sqlalchemy.orm import Session
 
 from app.core.current_user import get_current_user_email, get_current_user_id, set_current_user
 from app.core.db import get_db
-from app.schemas.auth import AuthSessionRead, LoginPayload, MessageResponse, RegisterPayload, UserRead
+from app.schemas.auth import (
+    AuthSessionRead,
+    ChangePasswordPayload,
+    LoginPayload,
+    MessageResponse,
+    RegisterPayload,
+    UpdateProfilePayload,
+    UserRead,
+)
 from app.services import auth as auth_service
 
 
@@ -85,3 +93,44 @@ def logout(
         except RuntimeError as err:
             raise HTTPException(status_code=400, detail=str(err)) from err
     return {"message": f"Session fermee pour {get_current_user_email(db) or 'utilisateur'}."}
+
+
+@router.patch("/auth/me", response_model=UserRead)
+def update_me(payload: UpdateProfilePayload, _user=Depends(require_authenticated_user), db: Session = Depends(get_db)):
+    del _user
+    try:
+        user = auth_service.update_display_name(db, get_current_user_id(db), payload.display_name)
+    except RuntimeError as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    if user is None:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+    return user
+
+
+@router.post("/auth/change-password", response_model=MessageResponse)
+def change_password(payload: ChangePasswordPayload, _user=Depends(require_authenticated_user), db: Session = Depends(get_db)):
+    del _user
+    try:
+        auth_service.change_password(db, get_current_user_id(db), payload.current_password, payload.new_password)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    except RuntimeError as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    return {"message": "Mot de passe mis à jour."}
+
+
+@router.post("/auth/logout-other-sessions", response_model=MessageResponse)
+def logout_other_sessions(
+    authorization: str | None = Header(default=None),
+    _user=Depends(require_authenticated_user),
+    db: Session = Depends(get_db),
+):
+    del _user
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    try:
+        auth_service.delete_other_sessions(db, get_current_user_id(db), token)
+    except RuntimeError as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
+    return {"message": "Les autres sessions ont été fermées."}

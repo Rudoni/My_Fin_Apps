@@ -1,31 +1,166 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { AuthUser, changePassword, logoutOtherSessions, updateMe } from "../api/auth";
 import { getApiBaseUrl, getStoredApiKey, setStoredApiKey } from "../api/client";
 
 const apiBaseUrl = getApiBaseUrl();
 
 type SettingsPageProps = {
+  currentUser: AuthUser | null;
   brocanteFocusMode: boolean;
   onToggleBrocanteFocusMode: (value: boolean) => void;
+  onUserUpdated: (user: AuthUser) => void;
   onLogout: () => void;
 };
 
-export function SettingsPage({ brocanteFocusMode, onToggleBrocanteFocusMode, onLogout }: SettingsPageProps) {
+export function SettingsPage({
+  currentUser,
+  brocanteFocusMode,
+  onToggleBrocanteFocusMode,
+  onUserUpdated,
+  onLogout,
+}: SettingsPageProps) {
   const frontendUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
   const [apiKey, setApiKey] = useState("");
+  const [displayName, setDisplayName] = useState(currentUser?.display_name ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [securityMessage, setSecurityMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [closingSessions, setClosingSessions] = useState(false);
 
   useEffect(() => {
     setApiKey(getStoredApiKey());
   }, []);
 
+  useEffect(() => {
+    setDisplayName(currentUser?.display_name ?? "");
+  }, [currentUser]);
+
+  async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!displayName.trim()) return;
+    setSavingProfile(true);
+    setError(null);
+    setProfileMessage(null);
+    try {
+      const updatedUser = await updateMe({ display_name: displayName.trim() });
+      onUserUpdated(updatedUser);
+      setProfileMessage("Profil mis à jour.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de mettre à jour le profil.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSecurityMessage(null);
+    if (newPassword !== confirmPassword) {
+      setError("Les nouveaux mots de passe ne correspondent pas.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const response = await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setSecurityMessage(response.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de changer le mot de passe.");
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  async function handleLogoutOtherSessions() {
+    setClosingSessions(true);
+    setError(null);
+    setSecurityMessage(null);
+    try {
+      const response = await logoutOtherSessions();
+      setSecurityMessage(response.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de fermer les autres sessions.");
+    } finally {
+      setClosingSessions(false);
+    }
+  }
+
   return (
     <main className="page-shell">
       <header className="hero compact-hero">
         <div>
-          <p className="eyebrow">Réglages</p>
-          <h1>Paramètres</h1>
-          <p>Les infos utiles pour lancer l'app, vérifier les URLs et garder la stack propre sous la main.</p>
+          <p className="eyebrow">Compte & réglages</p>
+          <h1>Mon espace</h1>
+          <p>Tu gères ici ton profil, la sécurité de ton compte et les réglages pratiques de l'app.</p>
         </div>
       </header>
+
+      {error ? <div className="error-box">{error}</div> : null}
+
+      <section className="settings-grid">
+        <section className="panel settings-card">
+          <div className="section-title">Profil</div>
+          <form className="form-panel" onSubmit={(event) => void handleProfileSubmit(event)}>
+            <label>
+              Nom affiché
+              <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            </label>
+            <div className="strategy-row">
+              <span>Email</span>
+              <strong>{currentUser?.email ?? "-"}</strong>
+            </div>
+            <div className="strategy-row">
+              <span>Membre depuis</span>
+              <strong>{currentUser ? new Date(currentUser.created_at).toLocaleDateString("fr-FR") : "-"}</strong>
+            </div>
+            {profileMessage ? <div className="success-box">{profileMessage}</div> : null}
+            <button className="primary-button" type="submit" disabled={savingProfile}>
+              {savingProfile ? "Enregistrement..." : "Enregistrer le profil"}
+            </button>
+          </form>
+        </section>
+
+        <section className="panel settings-card">
+          <div className="section-title">Sécurité</div>
+          <form className="form-panel" onSubmit={(event) => void handlePasswordSubmit(event)}>
+            <label>
+              Mot de passe actuel
+              <input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+            </label>
+            <label>
+              Nouveau mot de passe
+              <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} required />
+            </label>
+            <label>
+              Confirmer le nouveau mot de passe
+              <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} required />
+            </label>
+            {securityMessage ? <div className="success-box">{securityMessage}</div> : null}
+            <div className="settings-action-stack">
+              <button className="primary-button" type="submit" disabled={savingPassword}>
+                {savingPassword ? "Mise à jour..." : "Changer le mot de passe"}
+              </button>
+              <button className="ghost-button" type="button" onClick={() => void handleLogoutOtherSessions()} disabled={closingSessions}>
+                {closingSessions ? "Fermeture..." : "Fermer les autres sessions"}
+              </button>
+              <button className="ghost-button" type="button" onClick={onLogout}>
+                Se déconnecter
+              </button>
+            </div>
+          </form>
+        </section>
+      </section>
 
       <section className="settings-grid">
         <section className="panel settings-card">
@@ -49,27 +184,9 @@ export function SettingsPage({ brocanteFocusMode, onToggleBrocanteFocusMode, onL
         </section>
 
         <section className="panel settings-card">
-          <div className="section-title">Commandes rapides</div>
-          <div className="settings-command">
-            <span>Backend</span>
-            <code>cd backend && source .venv/bin/activate && uvicorn app.main:app --reload</code>
-          </div>
-          <div className="settings-command">
-            <span>Frontend</span>
-            <code>cd frontend && npm run dev</code>
-          </div>
-          <div className="settings-command">
-            <span>Init DB</span>
-            <code>psql "$MY_FIN_APPS_DB_URL" -f init.sql</code>
-          </div>
-        </section>
-      </section>
-
-      <section className="settings-grid">
-        <section className="panel settings-card">
           <div className="section-title">Clé API</div>
           <p className="settings-copy">
-            Pour protéger l'app quand `MY_FIN_APPS_API_KEY` est activée côté backend, renseigne ici la même valeur côté navigateur.
+            Si tu actives une clé API partagée côté backend, tu peux la ranger ici côté navigateur.
           </p>
           <label>
             Clé API
@@ -91,30 +208,16 @@ export function SettingsPage({ brocanteFocusMode, onToggleBrocanteFocusMode, onL
             >
               Vider
             </button>
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => setStoredApiKey(apiKey)}
-            >
+            <button className="primary-button" type="button" onClick={() => setStoredApiKey(apiKey)}>
               Enregistrer
             </button>
           </div>
         </section>
 
         <section className="panel settings-card">
-          <div className="section-title">Session</div>
-          <p className="settings-copy">
-            Déconnecte-toi ici pour tester un autre compte ou changer d'utilisateur sur cette machine.
-          </p>
-          <button className="ghost-button" type="button" onClick={onLogout}>
-            Se déconnecter
-          </button>
-        </section>
-
-        <section className="panel settings-card">
           <div className="section-title">Navigation</div>
           <p className="settings-copy">
-            Active un mode focus si tu veux afficher uniquement <strong>Stock brocante</strong> dans le menu de gauche.
+            Active un mode focus si tu veux garder uniquement <strong>Stock brocante</strong> et les réglages sous la main.
           </p>
           <div className="settings-toggle-row">
             <span>{brocanteFocusMode ? "Mode focus brocante actif" : "Menu complet actif"}</span>
@@ -126,26 +229,6 @@ export function SettingsPage({ brocanteFocusMode, onToggleBrocanteFocusMode, onL
               {brocanteFocusMode ? "Désactiver" : "Activer"}
             </button>
           </div>
-        </section>
-
-        <section className="panel settings-card">
-          <div className="section-title">Organisation de l'app</div>
-          <ul className="settings-list">
-            <li>Dashboard pour la vision globale revenus, dépenses, achat-revente et patrimoine.</li>
-            <li>Dépenses pour piloter le cashflow et les sorties mensuelles.</li>
-            <li>Achat-revente pour les pièces unitaires et la performance par article.</li>
-            <li>Stock brocante pour le stock agrégé et le binder.</li>
-            <li>Patrimoine pour cash, actions, ETF, crypto et actifs physiques.</li>
-          </ul>
-        </section>
-
-        <section className="panel settings-card">
-          <div className="section-title">Notes utiles</div>
-          <ul className="settings-list">
-            <li>Les pages utilisent la même base Postgres que la version historique.</li>
-            <li>Si une nouvelle table ou colonne est ajoutée, relance `init.sql` sans crainte sur l'existant.</li>
-            <li>Pour les actifs cotés, privilégie les tickers Yahoo cohérents avec ta devise.</li>
-          </ul>
         </section>
       </section>
     </main>

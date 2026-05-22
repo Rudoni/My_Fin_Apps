@@ -186,3 +186,56 @@ def delete_session(db: Session, token: str) -> None:
         {"token_hash": hash_session_token(token)},
     )
     db.commit()
+
+
+def delete_other_sessions(db: Session, user_id: int, current_token: str) -> None:
+    ensure_auth_tables(db)
+    db.execute(
+        text(
+            """
+            DELETE FROM user_session
+            WHERE user_id = :user_id
+              AND token_hash <> :token_hash
+            """
+        ),
+        {"user_id": user_id, "token_hash": hash_session_token(current_token)},
+    )
+    db.commit()
+
+
+def update_display_name(db: Session, user_id: int, display_name: str):
+    ensure_auth_tables(db)
+    row = db.execute(
+        text(
+            """
+            UPDATE app_user
+            SET display_name = :display_name
+            WHERE user_id = :user_id
+            RETURNING user_id, email, display_name, created_at
+            """
+        ),
+        {"user_id": user_id, "display_name": display_name.strip()},
+    ).mappings().first()
+    db.commit()
+    return row
+
+
+def change_password(db: Session, user_id: int, current_password: str, new_password: str) -> None:
+    ensure_auth_tables(db)
+    user = get_user_by_id(db, user_id)
+    if user is None or not verify_password(current_password, str(user["password_hash"])):
+        raise ValueError("Mot de passe actuel invalide.")
+    if verify_password(new_password, str(user["password_hash"])):
+        raise ValueError("Le nouveau mot de passe doit être différent de l'ancien.")
+
+    db.execute(
+        text(
+            """
+            UPDATE app_user
+            SET password_hash = :password_hash
+            WHERE user_id = :user_id
+            """
+        ),
+        {"user_id": user_id, "password_hash": hash_password(new_password)},
+    )
+    db.commit()

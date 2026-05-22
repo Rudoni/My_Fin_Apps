@@ -31,8 +31,26 @@ export function getMe() {
   return apiRequest<AuthUser>("/auth/me");
 }
 
+export function updateMe(payload: { display_name: string }) {
+  return apiRequest<AuthUser>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function changePassword(payload: { current_password: string; new_password: string }) {
+  return apiRequest<{ message: string }>("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function logout() {
   return apiRequest<{ message: string }>("/auth/logout", { method: "POST" });
+}
+
+export function logoutOtherSessions() {
+  return apiRequest<{ message: string }>("/auth/logout-other-sessions", { method: "POST" });
 }
 
 export function persistSession(session: AuthSession) {

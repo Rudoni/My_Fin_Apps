@@ -25,6 +25,7 @@ import {
 import { MetricCard } from "../components/MetricCard";
 import { Modal } from "../components/Modal";
 import { YearFilter } from "../components/YearFilter";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { AllocationDashboard } from "./expenses/AllocationDashboard";
 import { ExpenseForms } from "./expenses/ExpenseForms";
 import { IncomeDashboard } from "./expenses/IncomeDashboard";
@@ -101,6 +102,7 @@ function applyExpenseToSummary(current: BudgetSummary | null, expense: Expense, 
 }
 
 export function ExpensesPage() {
+  const isMobile = useIsMobile();
   const latestContentRequestRef = useRef(0);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -140,6 +142,7 @@ export function ExpensesPage() {
   const [incomePageSize, setIncomePageSize] = useState(20);
   const [allocationPage, setAllocationPage] = useState(1);
   const [allocationPageSize, setAllocationPageSize] = useState(20);
+  const [mobileSection, setMobileSection] = useState<"capture" | "history" | "pilotage">("capture");
 
   async function loadContent(years = selectedYears) {
     const requestId = latestContentRequestRef.current + 1;
@@ -360,6 +363,24 @@ export function ExpensesPage() {
   const averageAllocationPerEntry = allocations.length ? totalAllocation / allocations.length : 0;
   const incomeTotalPages = Math.max(1, Math.ceil(incomes.length / incomePageSize));
   const allocationTotalPages = Math.max(1, Math.ceil(allocations.length / allocationPageSize));
+  const recentBudgetEvents = [
+    ...expenses.slice(0, 8).map((expense) => ({
+      id: `expense-${expense.expense_id}`,
+      title: expense.description_expense,
+      subtitle: `${expense.subcategory} · ${expense.expense_date}`,
+      value: money(expense.price),
+      type: "Dépense",
+    })),
+    ...allocations.slice(0, 6).map((allocation) => ({
+      id: `allocation-${allocation.allocation_id}`,
+      title: allocation.description_allocation,
+      subtitle: `${allocation.allocation_group} → ${allocation.allocation_target} · ${allocation.allocation_date}`,
+      value: money(allocation.amount),
+      type: "Allocation",
+    })),
+  ]
+    .sort((left, right) => right.subtitle.localeCompare(left.subtitle))
+    .slice(0, 10);
 
   return (
     <main className="page-shell">
@@ -374,6 +395,23 @@ export function ExpensesPage() {
         </div>
       </header>
 
+      {isMobile ? (
+        <section className="panel mobile-switcher-panel">
+          <div className="mobile-section-switcher">
+            <button className={mobileSection === "capture" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("capture")}>
+              Saisir
+            </button>
+            <button className={mobileSection === "history" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("history")}>
+              Historique
+            </button>
+            <button className={mobileSection === "pilotage" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("pilotage")}>
+              Pilotage
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {(!isMobile || mobileSection === "pilotage") ? (
       <section className="metric-grid">
         <MetricCard label="Revenus saisis" value={money(summary?.income_total)} />
         <MetricCard label="Revenus complémentaires" value={money(summary?.complementary_income_total)} hint="Bénéfice revente réalisé" />
@@ -382,7 +420,15 @@ export function ExpensesPage() {
         <MetricCard label="Cashflow enrichi" value={money(summary?.cashflow_with_complementary)} />
         <MetricCard label="Reste après allocation" value={money(summary?.cashflow_after_allocations)} />
       </section>
+      ) : isMobile ? (
+        <section className="mobile-summary-strip">
+          <MetricCard label="Dépenses" value={money(summary?.expense_total)} />
+          <MetricCard label="Alloué" value={money(summary?.allocation_total)} />
+          <MetricCard label="Reste libre" value={money(summary?.cashflow_after_allocations)} />
+        </section>
+      ) : null}
 
+      {(!isMobile || mobileSection === "capture") ? (
       <ExpenseForms
         incomeForm={incomeForm}
         expenseForm={expenseForm}
@@ -392,8 +438,11 @@ export function ExpensesPage() {
         onExpenseFormChange={setExpenseForm}
         onSubmitIncome={(event) => void submitIncome(event)}
         onSubmitExpense={(event) => void submitExpense(event)}
+        prioritizeExpense={isMobile}
       />
+      ) : null}
 
+      {(!isMobile || mobileSection === "capture") ? (
       <section className="panel form-panel">
         <div className="section-title">Ajouter une allocation interne</div>
         <p className="section-copy">
@@ -453,7 +502,9 @@ export function ExpensesPage() {
           <button className="primary-button">Ajouter allocation</button>
         </form>
       </section>
+      ) : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <IncomeDashboard
         incomes={incomes}
         monthlyComplementaryIncomeChart={monthlyComplementaryIncomeChart}
@@ -475,7 +526,9 @@ export function ExpensesPage() {
         onPreviousPage={() => setIncomePage((page) => Math.max(1, page - 1))}
         onNextPage={() => setIncomePage((page) => Math.min(incomeTotalPages, page + 1))}
       />
+      ) : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <AllocationDashboard
         allocations={allocations}
         monthlyAllocationChart={monthlyAllocationChart}
@@ -494,7 +547,9 @@ export function ExpensesPage() {
         onPreviousPage={() => setAllocationPage((page) => Math.max(1, page - 1))}
         onNextPage={() => setAllocationPage((page) => Math.min(allocationTotalPages, page + 1))}
       />
+      ) : null}
 
+      {(!isMobile || mobileSection === "pilotage") ? (
       <section className="content-grid wide-right">
         <section className="panel chart-panel table-panel">
           <div className="section-title">Dépenses par mois</div>
@@ -522,13 +577,38 @@ export function ExpensesPage() {
           </ResponsiveContainer>
         </section>
       </section>
+      ) : null}
 
+      {(!isMobile || mobileSection === "history") ? (
       <ExpenseTables
         expenses={expenses}
         money={money}
         onEditExpense={openExpenseEdit}
         onDeleteExpense={setExpenseToDelete}
       />
+      ) : null}
+
+      {isMobile && mobileSection === "history" ? (
+        <section className="panel mobile-list-panel">
+          <div className="section-title">Derniers mouvements</div>
+          <div className="mobile-inventory-list">
+            {recentBudgetEvents.map((item) => (
+              <article key={item.id} className="mobile-item-card">
+                <div className="mobile-item-card-head">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <div className="mobile-item-badges">
+                      <span className="status-pill">{item.type}</span>
+                    </div>
+                  </div>
+                  <strong>{item.value}</strong>
+                </div>
+                <p className="section-copy">{item.subtitle}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {editingIncome ? (
         <Modal title="Modifier le revenu" eyebrow="Budget" onClose={() => setEditingIncome(null)}>

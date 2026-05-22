@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { BarChart3, Boxes, Coins, Eye, EyeOff, Home, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, Settings, X } from "lucide-react";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 export type AppPage = "dashboard" | "expenses" | "resale" | "brocante" | "patrimony" | "settings";
 
@@ -33,15 +34,20 @@ export function AppLayout({
   onTogglePrivacyMode,
   children,
 }: AppLayoutProps) {
+  const isMobile = useIsMobile();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const visibleNavItems = brocanteFocusMode ? navItems.filter((item) => item.id === "brocante" || item.id === "settings") : navItems;
+  const mobilePrimaryNavItems = visibleNavItems.filter((item) => item.id !== "settings").slice(0, 5);
+  const appFrameClassName = privacyMode
+    ? `app-frame privacy-mode${sidebarCollapsed && !isMobile ? " sidebar-collapsed" : ""}`
+    : `app-frame${sidebarCollapsed && !isMobile ? " sidebar-collapsed" : ""}`;
 
   useEffect(() => {
     setMobileNavOpen(false);
   }, [page]);
 
   return (
-    <div className={privacyMode ? `app-frame privacy-mode${sidebarCollapsed ? " sidebar-collapsed" : ""}` : `app-frame${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+    <div className={appFrameClassName}>
       <div className="mobile-topbar">
         <button className="icon-button mobile-topbar-button" type="button" onClick={() => setMobileNavOpen(true)} aria-label="Ouvrir le menu">
           <Menu size={18} />
@@ -58,10 +64,10 @@ export function AppLayout({
         </button>
       </div>
       {mobileNavOpen ? <button className="mobile-nav-backdrop" type="button" aria-label="Fermer le menu" onClick={() => setMobileNavOpen(false)} /> : null}
-      <aside className={`${sidebarCollapsed ? "sidebar collapsed" : "sidebar"}${mobileNavOpen ? " mobile-open" : ""}`}>
+      <aside className={`${sidebarCollapsed && !isMobile ? "sidebar collapsed" : "sidebar"}${mobileNavOpen ? " mobile-open" : ""}`}>
         <div className="brand">
           <span>MF</span>
-          <div className={sidebarCollapsed ? "brand-copy hidden" : "brand-copy"}>
+          <div className={sidebarCollapsed && !isMobile ? "brand-copy hidden" : "brand-copy"}>
             <strong>My Fin Apps</strong>
             <small>Pilotage perso</small>
           </div>
@@ -69,12 +75,14 @@ export function AppLayout({
             <X size={18} />
           </button>
         </div>
-        <button className="icon-button sidebar-collapse-toggle" type="button" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? "Ouvrir le menu" : "Ranger le menu"}>
-          {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        </button>
+        {!isMobile ? (
+          <button className="icon-button sidebar-collapse-toggle" type="button" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? "Ouvrir le menu" : "Ranger le menu"}>
+            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        ) : null}
         <button className={privacyMode ? "nav-item active privacy-toggle" : "nav-item privacy-toggle"} type="button" onClick={onTogglePrivacyMode}>
           {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
-          <span className={sidebarCollapsed ? "nav-label hidden" : "nav-label"}>
+          <span className={sidebarCollapsed && !isMobile ? "nav-label hidden" : "nav-label"}>
             {privacyMode ? "Réafficher les chiffres" : "Masquer les chiffres"}
           </span>
         </button>
@@ -87,15 +95,27 @@ export function AppLayout({
                 onPageChange(item.id);
                 setMobileNavOpen(false);
               }}
-              title={sidebarCollapsed ? item.label : undefined}
+              title={sidebarCollapsed && !isMobile ? item.label : undefined}
             >
               {item.icon}
-              <span className={sidebarCollapsed ? "nav-label hidden" : "nav-label"}>{item.label}</span>
+              <span className={sidebarCollapsed && !isMobile ? "nav-label hidden" : "nav-label"}>{item.label}</span>
             </button>
           ))}
         </nav>
       </aside>
-      <div className="app-content">{children}</div>
+      <div className="app-content">
+        {children}
+        {isMobile ? (
+          <nav className="mobile-bottom-nav" aria-label="Navigation principale">
+            {mobilePrimaryNavItems.map((item) => (
+              <button key={item.id} className={page === item.id ? "mobile-bottom-item active" : "mobile-bottom-item"} type="button" onClick={() => onPageChange(item.id)}>
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        ) : null}
+      </div>
     </div>
   );
 }

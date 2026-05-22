@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from "react";
-import { getMe, logout } from "./api/auth";
+import { AuthUser, getMe, logout } from "./api/auth";
 import { getStoredAuthToken, setStoredAuthToken } from "./api/client";
 import { AppLayout, AppPage } from "./components/AppLayout";
 import { PageLoader } from "./components/PageLoader";
@@ -15,6 +15,7 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => 
 export function App() {
   const [authResolved, setAuthResolved] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [page, setPage] = useState<AppPage>("dashboard");
   const [brocanteFocusMode, setBrocanteFocusMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
@@ -35,10 +36,14 @@ export function App() {
     }
 
     void getMe()
-      .then(() => setIsAuthenticated(true))
+      .then((user) => {
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+      })
       .catch(() => {
         setStoredAuthToken("");
         setIsAuthenticated(false);
+        setCurrentUser(null);
       })
       .finally(() => setAuthResolved(true));
   }, []);
@@ -73,12 +78,15 @@ export function App() {
       case "settings":
         return (
           <SettingsPage
+            currentUser={currentUser}
             brocanteFocusMode={brocanteFocusMode}
             onToggleBrocanteFocusMode={setBrocanteFocusMode}
+            onUserUpdated={setCurrentUser}
             onLogout={() => {
               void logout().catch(() => undefined).finally(() => {
                 setStoredAuthToken("");
                 setIsAuthenticated(false);
+                setCurrentUser(null);
               });
             }}
           />
@@ -93,7 +101,10 @@ export function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage onAuthenticated={() => setIsAuthenticated(true)} />;
+    return <LoginPage onAuthenticated={(user) => {
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+    }} />;
   }
 
   return (

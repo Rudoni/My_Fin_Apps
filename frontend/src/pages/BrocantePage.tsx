@@ -26,6 +26,7 @@ const BROCANTE_PAGE_SIZE = 50;
 
 type BrocanteView = "bulk" | "binder" | "settings";
 type BinderStatusFilter = "all" | "available" | "sold";
+type MobileBrocanteSection = "actions" | "inventory" | "pilotage";
 
 function money(value: string | null | undefined) {
   return euroFormatter.format(Number(value ?? 0));
@@ -91,6 +92,7 @@ export function BrocantePage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [binderStatusFilter, setBinderStatusFilter] = useState<BinderStatusFilter>("all");
+  const [mobileSection, setMobileSection] = useState<MobileBrocanteSection>("actions");
   const deferredSearch = useDeferredValue(search);
 
   const inventoryGroup = view === "binder" ? "binder" : "bulk";
@@ -149,6 +151,10 @@ export function BrocantePage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [view, categoryId, deferredSearch, binderStatusFilter]);
+
+  useEffect(() => {
+    setMobileSection("actions");
+  }, [view]);
 
   useEffect(() => {
     if (!categories.length) return;
@@ -470,6 +476,22 @@ export function BrocantePage() {
         </div>
       </section>
 
+      {isMobile && !isSettingsView ? (
+        <section className="panel mobile-switcher-panel">
+          <div className="mobile-section-switcher">
+            <button className={mobileSection === "actions" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("actions")}>
+              Saisir
+            </button>
+            <button className={mobileSection === "inventory" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("inventory")}>
+              Inventaire
+            </button>
+            <button className={mobileSection === "pilotage" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("pilotage")}>
+              Pilotage
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {error ? <div className="error-box">{error}</div> : null}
 
       {isSettingsView ? (
@@ -503,6 +525,15 @@ export function BrocantePage() {
         </section>
       ) : isMobile ? (
         <>
+          {mobileSection === "actions" ? (
+            <section className="mobile-summary-strip">
+              <MetricCard label="Stock" value={`${summary?.stock_quantity ?? 0}`} />
+              <MetricCard label="Valeur cible" value={money(summary?.target_stock_value)} />
+              <MetricCard label="P/L réalisée" value={money(summary?.realized_pnl)} />
+            </section>
+          ) : null}
+
+          {mobileSection === "pilotage" ? (
           <section className="mobile-metric-stack">
             <MetricCard label="Références" value={`${summary?.reference_count ?? 0}`} />
             <MetricCard label="Stock restant" value={`${summary?.stock_quantity ?? 0}`} />
@@ -526,7 +557,9 @@ export function BrocantePage() {
               hint={summary?.break_even_possible_with_target ? "Rentable si le stock part au prix cible" : "Le prix cible actuel ne couvre pas encore la mise"}
             />
           </section>
+          ) : null}
 
+          {mobileSection === "pilotage" ? (
           <section className="panel chart-panel full-width-section">
             <div className="section-title">P/L réalisée par jour · mois en cours</div>
             <p className="section-copy">Vision rapide de la plus-value encaissée sur le mois actuel.</p>
@@ -543,8 +576,9 @@ export function BrocantePage() {
               </BarChart>
             </ResponsiveContainer>
           </section>
+          ) : null}
 
-          {view === "binder" ? (
+          {mobileSection === "actions" && view === "binder" ? (
             <section className="mobile-form-stack">
               <form className="panel form-panel" onSubmit={(event) => void submitBinderCard(event)}>
                 <div className="section-title">
@@ -577,7 +611,9 @@ export function BrocantePage() {
                 <button className="primary-button">Ajouter la carte</button>
               </form>
             </section>
-          ) : (
+          ) : null}
+
+          {mobileSection === "actions" && view !== "binder" ? (
             <section className="mobile-form-stack">
               <form className="panel form-panel" onSubmit={(event) => void submitReference(event)}>
                 <div className="section-title">
@@ -665,8 +701,9 @@ export function BrocantePage() {
                 <button className="primary-button">Ajouter la vente</button>
               </form>
             </section>
-          )}
+          ) : null}
 
+          {mobileSection === "inventory" ? (
           <section className="panel mobile-list-panel">
             <div className="mobile-list-toolbar">
               <div className="section-title">{view === "binder" ? "Inventaire binder" : "Références brocante"}</div>
@@ -704,6 +741,7 @@ export function BrocantePage() {
               </div>
             ) : null}
           </section>
+          ) : null}
         </>
       ) : (
         <>

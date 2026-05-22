@@ -1,8 +1,8 @@
 import { FormEvent, useState } from "react";
-import { login, persistSession, register } from "../api/auth";
+import { AuthUser, login, persistSession, register } from "../api/auth";
 
 type LoginPageProps = {
-  onAuthenticated: () => void;
+  onAuthenticated: (user: AuthUser) => void;
 };
 
 export function LoginPage({ onAuthenticated }: LoginPageProps) {
@@ -23,7 +23,7 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
           ? await login({ email, password })
           : await register({ email, password, display_name: displayName });
       persistSession(session);
-      onAuthenticated();
+      onAuthenticated(session.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur d'authentification");
     } finally {

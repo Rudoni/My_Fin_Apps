@@ -26,6 +26,7 @@ const BROCANTE_PAGE_SIZE = 50;
 
 type BrocanteView = "bulk" | "binder" | "settings";
 type BinderStatusFilter = "all" | "available" | "sold";
+type OwnershipFilter = "all" | "solo" | "common";
 type MobileBrocanteSection = "actions" | "inventory" | "pilotage";
 
 function money(value: string | null | undefined) {
@@ -77,7 +78,6 @@ export function BrocantePage() {
   const [summary, setSummary] = useState<BrocanteSummary | null>(null);
   const [items, setItems] = useState<BrocanteItem[]>([]);
   const [categories, setCategories] = useState<BrocanteCategory[]>([]);
-  const [categoryId, setCategoryId] = useState("");
   const [search, setSearch] = useState("");
   const [referenceForm, setReferenceForm] = useState(emptyReferenceForm);
   const [binderForm, setBinderForm] = useState(emptyBinderForm);
@@ -92,6 +92,7 @@ export function BrocantePage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [binderStatusFilter, setBinderStatusFilter] = useState<BinderStatusFilter>("all");
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("all");
   const [mobileSection, setMobileSection] = useState<MobileBrocanteSection>("actions");
   const deferredSearch = useDeferredValue(search);
 
@@ -104,7 +105,7 @@ export function BrocantePage() {
       : view === "settings"
         ? "Tu peux faire vivre ton système brocante ici, sans toucher au stock."
         : "Tu gères ici les cartes et lots en quantité : prix moyen, stock restant et ventes en bloc.";
-  const defaultBinderCategoryId = categories.find((category) => category.name === "Pokemon")?.id ?? categories[0]?.id ?? 0;
+  const pokemonCategoryId = categories.find((category) => category.name.toLowerCase() === "pokemon")?.id ?? categories[0]?.id ?? 0;
 
   async function loadCategoriesOnly() {
     try {
@@ -123,15 +124,15 @@ export function BrocantePage() {
       }
 
       const [summaryData, itemsData] = await Promise.all([
-        getBrocanteSummary(categoryId, deferredSearch, inventoryGroup),
-        getBrocanteItems(categoryId, deferredSearch, inventoryGroup),
+        getBrocanteSummary("", deferredSearch, inventoryGroup),
+        getBrocanteItems("", deferredSearch, inventoryGroup),
       ]);
       setSummary(summaryData);
       setItems(itemsData);
       setReferenceForm((form) => ({
         ...form,
         inventory_group: inventoryGroup,
-        brocante_category_id: form.brocante_category_id || categories[0]?.id || 0,
+        brocante_category_id: form.brocante_category_id || pokemonCategoryId || 0,
       }));
       setPurchaseForm((form) => ({ ...form, brocante_item_id: form.brocante_item_id || itemsData[0]?.brocante_item_id || 0 }));
       setSaleForm((form) => ({ ...form, brocante_item_id: form.brocante_item_id || itemsData[0]?.brocante_item_id || 0 }));
@@ -142,7 +143,7 @@ export function BrocantePage() {
 
   useEffect(() => {
     void loadContent();
-  }, [view, categoryId, deferredSearch]);
+  }, [view, deferredSearch, pokemonCategoryId]);
 
   useEffect(() => {
     void loadCategoriesOnly();
@@ -150,7 +151,7 @@ export function BrocantePage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [view, categoryId, deferredSearch, binderStatusFilter]);
+  }, [view, deferredSearch, binderStatusFilter, ownershipFilter]);
 
   useEffect(() => {
     setMobileSection("actions");
@@ -160,9 +161,9 @@ export function BrocantePage() {
     if (!categories.length) return;
     setReferenceForm((form) => ({
       ...form,
-      brocante_category_id: form.brocante_category_id || categories[0].id,
+      brocante_category_id: form.brocante_category_id || pokemonCategoryId,
     }));
-  }, [categories]);
+  }, [categories, pokemonCategoryId]);
 
   async function submitReference(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -176,7 +177,7 @@ export function BrocantePage() {
     });
     setReferenceForm((form) => ({
       ...emptyReferenceForm,
-      brocante_category_id: form.brocante_category_id,
+      brocante_category_id: form.brocante_category_id || pokemonCategoryId,
       inventory_group: inventoryGroup,
     }));
     await loadContent();
@@ -186,7 +187,7 @@ export function BrocantePage() {
     event.preventDefault();
     const createdItem = await createBrocanteItem({
       name: binderForm.name,
-      brocante_category_id: defaultBinderCategoryId,
+      brocante_category_id: pokemonCategoryId,
       inventory_group: "binder",
       ownership_mode: binderForm.ownership_mode,
       card_type: "",
@@ -322,13 +323,12 @@ export function BrocantePage() {
   }
 
   const filteredItems =
-    view === "binder"
-      ? items.filter((item) => {
-          if (binderStatusFilter === "available") return item.stock_quantity > 0;
-          if (binderStatusFilter === "sold") return item.stock_quantity <= 0;
-          return true;
-        })
-      : items;
+    items.filter((item) => {
+      if (binderStatusFilter === "available" && item.stock_quantity <= 0) return false;
+      if (binderStatusFilter === "sold" && item.stock_quantity > 0) return false;
+      if (ownershipFilter !== "all" && item.ownership_mode !== ownershipFilter) return false;
+      return true;
+    });
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / BROCANTE_PAGE_SIZE));
   const pageStart = (currentPage - 1) * BROCANTE_PAGE_SIZE;
@@ -403,14 +403,13 @@ export function BrocantePage() {
     return (
       <article key={item.brocante_item_id} className="mobile-item-card">
         <div className="mobile-item-card-head">
-          <div>
-            <strong>{item.name}</strong>
-            <div className="mobile-item-badges">
-              <span className="status-pill">{ownershipLabel(item.ownership_mode)}</span>
-              <span className="status-pill">{item.category}</span>
-              {item.card_type ? <span className="status-pill">{item.card_type}</span> : null}
+            <div>
+              <strong>{item.name}</strong>
+              <div className="mobile-item-badges">
+                <span className="status-pill">{ownershipLabel(item.ownership_mode)}</span>
+                {item.card_type ? <span className="status-pill">{item.card_type}</span> : null}
+              </div>
             </div>
-          </div>
           <button type="button" className="ghost-button" onClick={() => openEdit(item)}>
             <Pencil size={16} />
             Modifier
@@ -621,12 +620,6 @@ export function BrocantePage() {
                   Ajouter une référence
                 </div>
                 <label>
-                  Catégorie
-                  <select value={referenceForm.brocante_category_id} onChange={(event) => setReferenceForm({ ...referenceForm, brocante_category_id: Number(event.target.value) })}>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                </label>
-                <label>
                   Nom de référence
                   <input value={referenceForm.name} onChange={(event) => setReferenceForm({ ...referenceForm, name: event.target.value })} placeholder="Dracaufeu holo, Pikachu lot..." />
                 </label>
@@ -660,7 +653,7 @@ export function BrocantePage() {
                 <label>
                   Référence
                   <select value={purchaseForm.brocante_item_id} onChange={(event) => setPurchaseForm({ ...purchaseForm, brocante_item_id: Number(event.target.value) })}>
-                    {items.map((item) => <option key={item.brocante_item_id} value={item.brocante_item_id}>{item.name} · {item.category}</option>)}
+                    {items.map((item) => <option key={item.brocante_item_id} value={item.brocante_item_id}>{item.name}</option>)}
                   </select>
                 </label>
                 <label>
@@ -712,18 +705,16 @@ export function BrocantePage() {
                   <Search size={16} />
                   <input placeholder="Rechercher..." value={search} onChange={(event) => setSearch(event.target.value)} />
                 </label>
-                {view === "binder" ? (
-                  <select value={binderStatusFilter} onChange={(event) => setBinderStatusFilter(event.target.value as BinderStatusFilter)}>
-                    <option value="all">Tous statuts</option>
-                    <option value="available">En stock</option>
-                    <option value="sold">Vendu</option>
-                  </select>
-                ) : (
-                  <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-                    <option value="">Toutes catégories</option>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                )}
+                <select value={binderStatusFilter} onChange={(event) => setBinderStatusFilter(event.target.value as BinderStatusFilter)}>
+                  <option value="all">Tous statuts</option>
+                  <option value="available">En stock</option>
+                  <option value="sold">Vendu</option>
+                </select>
+                <select value={ownershipFilter} onChange={(event) => setOwnershipFilter(event.target.value as OwnershipFilter)}>
+                  <option value="all">Toutes parts</option>
+                  <option value="solo">Solo</option>
+                  <option value="common">Commun</option>
+                </select>
               </div>
             </div>
 
@@ -840,12 +831,6 @@ export function BrocantePage() {
                 Ajouter une référence
               </div>
               <label>
-                Catégorie
-                <select value={referenceForm.brocante_category_id} onChange={(event) => setReferenceForm({ ...referenceForm, brocante_category_id: Number(event.target.value) })}>
-                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                </select>
-              </label>
-              <label>
                 Nom de référence
                 <input value={referenceForm.name} onChange={(event) => setReferenceForm({ ...referenceForm, name: event.target.value })} placeholder="Dracaufeu holo, Pikachu lot..." />
               </label>
@@ -881,7 +866,7 @@ export function BrocantePage() {
               <label>
                 Référence
                 <select value={purchaseForm.brocante_item_id} onChange={(event) => setPurchaseForm({ ...purchaseForm, brocante_item_id: Number(event.target.value) })}>
-                  {items.map((item) => <option key={item.brocante_item_id} value={item.brocante_item_id}>{item.name} · {item.category}</option>)}
+                  {items.map((item) => <option key={item.brocante_item_id} value={item.brocante_item_id}>{item.name}</option>)}
                 </select>
               </label>
               <div className="form-row">
@@ -936,18 +921,16 @@ export function BrocantePage() {
                   <Search size={16} />
                   <input placeholder="Rechercher..." value={search} onChange={(event) => setSearch(event.target.value)} />
                 </label>
-                {view === "binder" ? (
-                  <select value={binderStatusFilter} onChange={(event) => setBinderStatusFilter(event.target.value as BinderStatusFilter)}>
-                    <option value="all">Tous statuts</option>
-                    <option value="available">En stock</option>
-                    <option value="sold">Vendu</option>
-                  </select>
-                ) : (
-                  <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-                    <option value="">Toutes catégories</option>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                )}
+                <select value={binderStatusFilter} onChange={(event) => setBinderStatusFilter(event.target.value as BinderStatusFilter)}>
+                  <option value="all">Tous statuts</option>
+                  <option value="available">En stock</option>
+                  <option value="sold">Vendu</option>
+                </select>
+                <select value={ownershipFilter} onChange={(event) => setOwnershipFilter(event.target.value as OwnershipFilter)}>
+                  <option value="all">Toutes parts</option>
+                  <option value="solo">Solo</option>
+                  <option value="common">Commun</option>
+                </select>
               </div>
             </div>
             <div className="table-scroll">
@@ -970,7 +953,6 @@ export function BrocantePage() {
                     <tr>
                       <th>Référence</th>
                       <th>Part</th>
-                      <th>Catégorie</th>
                       <th>Type</th>
                       <th>Stock</th>
                       <th>PRU moyen</th>
@@ -1011,7 +993,6 @@ export function BrocantePage() {
                         <>
                           <td>{item.name}</td>
                           <td><span className="status-pill">{ownershipLabel(item.ownership_mode)}</span></td>
-                          <td>{item.category}</td>
                           <td>{item.card_type || "-"}</td>
                           <td>{item.stock_quantity}</td>
                           <td>{money(item.average_buy_unit_price)}</td>
@@ -1050,12 +1031,6 @@ export function BrocantePage() {
             <label>
               Nom
               <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
-            </label>
-            <label>
-              Catégorie
-              <select value={editForm.brocante_category_id} onChange={(event) => setEditForm({ ...editForm, brocante_category_id: Number(event.target.value) })}>
-                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
             </label>
             {editingItem.inventory_group !== "binder" ? (
               <>

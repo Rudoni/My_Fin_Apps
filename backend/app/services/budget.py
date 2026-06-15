@@ -25,11 +25,53 @@ def has_budget_allocation_table(db: Session) -> bool:
     return bool(db.execute(text("SELECT to_regclass('public.budget_allocation') IS NOT NULL")).scalar())
 
 
+def get_brocante_realized_pnl_by_month(db: Session, years: list[int] | None = None) -> dict[str, Decimal]:
+    params = {"years": years or [], "user_id": get_current_user_id(db)}
+    rows = db.execute(
+        text(
+            f"""
+            WITH purchase_totals AS (
+                SELECT
+                    bm.brocante_item_id,
+                    COALESCE(SUM(CASE WHEN bm.movement_type = 'PURCHASE' THEN bm.quantity ELSE 0 END), 0) AS purchased_quantity,
+                    COALESCE(SUM(CASE WHEN bm.movement_type = 'PURCHASE' THEN bm.total_amount * bi.ownership_share ELSE 0 END), 0) AS purchase_total
+                FROM brocante_movement bm
+                JOIN brocante_item bi ON bi.brocante_item_id = bm.brocante_item_id
+                WHERE bi.user_id = :user_id
+                GROUP BY bm.brocante_item_id
+            )
+            SELECT
+                TO_CHAR(bm.movement_date, 'YYYY-MM') AS month_label,
+                SUM(
+                    (bm.total_amount * bi.ownership_share) -
+                    CASE
+                        WHEN COALESCE(pt.purchased_quantity, 0) > 0
+                            THEN bm.quantity * (COALESCE(pt.purchase_total, 0) / pt.purchased_quantity)
+                        ELSE 0
+                    END
+                ) AS realized_pnl
+            FROM brocante_movement bm
+            JOIN brocante_item bi ON bi.brocante_item_id = bm.brocante_item_id
+            LEFT JOIN purchase_totals pt ON pt.brocante_item_id = bm.brocante_item_id
+            WHERE bi.is_active = TRUE
+              AND bi.user_id = :user_id
+              AND bm.movement_type = 'SALE'
+              {"AND EXTRACT(YEAR FROM bm.movement_date)::int = ANY(:years)" if years else ""}
+            GROUP BY month_label
+            ORDER BY month_label ASC
+            """
+        ),
+        params,
+    ).mappings().all()
+    return {str(row["month_label"]): money(row["realized_pnl"]) for row in rows}
+
+
 def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
     params = {"years": years or []}
     user_id = get_current_user_id(db)
     resale_summary = get_resale_summary(db, years=years)
     resale_items = list_resale_items(db, years=years)
+    brocante_realized_by_month = get_brocante_realized_pnl_by_month(db, years=years)
     incomes = db.execute(
         text(f"SELECT amount, income_date, income_type FROM incomes{years_clause('income_date', years)}"),
         {**params, "user_id": user_id},
@@ -60,7 +102,8 @@ def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
     ).mappings().all()
 
     income_total = sum((money(row["amount"]) for row in incomes), Decimal("0"))
-    complementary_income_total = resale_summary.benefit_total
+    brocante_complementary_income_total = sum(brocante_realized_by_month.values(), Decimal("0"))
+    complementary_income_total = resale_summary.benefit_total + brocante_complementary_income_total
     total_income_with_complementary = income_total + complementary_income_total
     expense_total = sum((money(row["price"]) for row in expenses), Decimal("0"))
     allocation_total = sum((money(row["amount"]) for row in allocations), Decimal("0"))
@@ -83,6 +126,9 @@ def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
 
     for row in resale_summary.benefit_by_month:
         complementary_income_by_month[row.label] += money(row.value)
+
+    for month, value in brocante_realized_by_month.items():
+        complementary_income_by_month[month] += value
 
     all_income_months = set(income_by_month.keys()) | set(complementary_income_by_month.keys())
     for month in all_income_months:

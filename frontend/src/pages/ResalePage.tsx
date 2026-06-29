@@ -328,6 +328,24 @@ export function ResalePage() {
         <MetricCard label="Bénéfice total" value={money(summary?.benefit_total)} />
         <MetricCard label="P/L latente" value={money(summary?.unrealized_pnl)} hint="Prix attendu - prix payé sur le non vendu" />
         <MetricCard label="Stock estimé" value={money(summary?.unsold_value)} hint={`${summary?.unsold_count ?? 0} non vendus`} />
+        <MetricCard
+          label="Seuil de rentabilité"
+          value={Number(summary?.break_even_remaining ?? 0) > 0 ? money(summary?.break_even_remaining) : "Atteint"}
+          hint={
+            Number(summary?.break_even_remaining ?? 0) > 0
+              ? "Encore à encaisser pour rembourser toute la mise achat-revente"
+              : "Tes ventes ont déjà couvert toute la mise"
+          }
+        />
+        <MetricCard
+          label="Couverture de mise"
+          value={percent(summary?.break_even_progress_pct)}
+          hint={
+            summary?.break_even_possible_with_target
+              ? "Rentable si le stock restant part à ton prix cible"
+              : "Même au prix cible actuel, la mise n'est pas encore couverte"
+          }
+        />
       </section>
       ) : isMobile ? (
         <section className="mobile-summary-strip">
@@ -399,6 +417,8 @@ export function ResalePage() {
                 <th>Bénéfice</th>
                 <th>Marge %</th>
                 <th>Investi en attente</th>
+                <th>Seuil restant</th>
+                <th>Couverture</th>
                 <th>Bénéfice possible</th>
                 <th>Marge possible %</th>
               </tr>
@@ -411,6 +431,8 @@ export function ResalePage() {
                   <td className={Number(row.benefit_total) >= 0 ? "positive" : "negative"}>{money(row.benefit_total)}</td>
                   <td className={Number(row.margin_rate) >= 0 ? "positive" : "negative"}>{percent(row.margin_rate)}</td>
                   <td>{money(row.expected_purchase_total)}</td>
+                  <td>{Number(row.break_even_remaining) > 0 ? money(row.break_even_remaining) : "Atteint"}</td>
+                  <td className={row.break_even_possible_with_target ? "positive" : "negative"}>{percent(row.break_even_progress_pct)}</td>
                   <td className={Number(row.expected_benefit_total) >= 0 ? "positive" : "negative"}>{money(row.expected_benefit_total)}</td>
                   <td className={Number(row.expected_margin_rate) >= 0 ? "positive" : "negative"}>{percent(row.expected_margin_rate)}</td>
                 </tr>

@@ -55,6 +55,9 @@ export type CategoryMetric = {
   expected_benefit_total: string;
   expected_margin_rate: string;
   stock_estimated_value: string;
+  break_even_remaining: string;
+  break_even_progress_pct: string;
+  break_even_possible_with_target: boolean;
 };
 
 export type ResaleSummary = {
@@ -64,6 +67,9 @@ export type ResaleSummary = {
   unrealized_pnl: string;
   unsold_value: string;
   unsold_count: number;
+  break_even_remaining: string;
+  break_even_progress_pct: string;
+  break_even_possible_with_target: boolean;
   ca_by_year: TimeMetric[];
   benefit_by_year: TimeMetric[];
   benefit_by_month: TimeMetric[];

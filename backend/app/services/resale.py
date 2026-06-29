@@ -193,6 +193,11 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
     benefit_total = sum((item.benefit for item in sold_items), Decimal("0"))
     unsold_value = sum((item.expected_total for item in stock_items), Decimal("0"))
     unrealized_pnl = sum((item.expected_benefit for item in stock_items), Decimal("0"))
+    purchase_total_all = sum((item.purchase_total for item in items), Decimal("0"))
+    break_even_remaining = max(purchase_total_all - ca_total, Decimal("0"))
+    break_even_progress_pct = Decimal("0")
+    if purchase_total_all > 0:
+        break_even_progress_pct = (ca_total / purchase_total_all) * Decimal("100")
 
     ca_by_year: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     benefit_by_year: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -208,6 +213,9 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
             "expected_benefit_total": Decimal("0"),
             "expected_margin_rate": Decimal("0"),
             "stock_estimated_value": Decimal("0"),
+            "break_even_remaining": Decimal("0"),
+            "break_even_progress_pct": Decimal("0"),
+            "break_even_possible_with_target": True,
         }
     )
 
@@ -242,6 +250,19 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
             if expected_purchase_total > 0
             else Decimal("0")
         )
+        total_purchase = purchase_total + expected_purchase_total
+        sales_total = category_values["ca_total"]
+        category_values["break_even_remaining"] = max(total_purchase - sales_total, Decimal("0"))
+        category_values["break_even_progress_pct"] = (
+            (sales_total / total_purchase) * Decimal("100")
+            if total_purchase > 0
+            else Decimal("0")
+        )
+        category_values["break_even_possible_with_target"] = (
+            (sales_total + category_values["stock_estimated_value"]) >= total_purchase
+            if total_purchase > 0
+            else True
+        )
 
     return ResaleSummary(
         ca_total=ca_total,
@@ -250,6 +271,9 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
         unrealized_pnl=unrealized_pnl,
         unsold_value=unsold_value,
         unsold_count=len(stock_items),
+        break_even_remaining=break_even_remaining,
+        break_even_progress_pct=break_even_progress_pct,
+        break_even_possible_with_target=(ca_total + unsold_value) >= purchase_total_all if purchase_total_all > 0 else True,
         ca_by_year=[TimeMetric(label=key, value=value) for key, value in sorted(ca_by_year.items())],
         benefit_by_year=[TimeMetric(label=key, value=value) for key, value in sorted(benefit_by_year.items())],
         benefit_by_month=[TimeMetric(label=key, value=value) for key, value in sorted(benefit_by_month.items())],

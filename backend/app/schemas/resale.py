@@ -68,6 +68,9 @@ class CategoryMetric(BaseModel):
     expected_benefit_total: Decimal = Decimal("0")
     expected_margin_rate: Decimal = Decimal("0")
     stock_estimated_value: Decimal = Decimal("0")
+    break_even_remaining: Decimal = Decimal("0")
+    break_even_progress_pct: Decimal = Decimal("0")
+    break_even_possible_with_target: bool = True
 
 
 class TimeMetric(BaseModel):
@@ -82,6 +85,9 @@ class ResaleSummary(BaseModel):
     unrealized_pnl: Decimal
     unsold_value: Decimal
     unsold_count: int
+    break_even_remaining: Decimal
+    break_even_progress_pct: Decimal
+    break_even_possible_with_target: bool
     ca_by_year: list[TimeMetric]
     benefit_by_year: list[TimeMetric]
     benefit_by_month: list[TimeMetric]

@@ -74,9 +74,14 @@ export function PatrimonyPage() {
   const [ledgerImporting, setLedgerImporting] = useState(false);
   const [patrimonyChartMode, setPatrimonyChartMode] = useState<"pie" | "mosaic">("pie");
   const [error, setError] = useState<string | null>(null);
+  const [section, setSection] = useState<"assets" | "capture" | "pilotage">("assets");
 
   async function load() {
-    setData(await getPatrimonySummary());
+    try {
+      setData(await getPatrimonySummary());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de charger le patrimoine.");
+    }
   }
 
   useEffect(() => { void load(); }, []);
@@ -217,6 +222,13 @@ export function PatrimonyPage() {
       </header>
 
       {error ? <div className="error-box">{error}</div> : null}
+      <nav className="panel mobile-switcher-panel" aria-label="Vues patrimoine">
+        <div className="mobile-section-switcher">
+          {([["assets", "Mes actifs"], ["capture", "Ajouter / importer"], ["pilotage", "Répartition"]] as const).map(([id, label]) => (
+            <button key={id} type="button" className={section === id ? "primary-button" : "ghost-button"} aria-pressed={section === id} onClick={() => setSection(id)}>{label}</button>
+          ))}
+        </div>
+      </nav>
 
       <section className="metric-grid">
         <MetricCard label="Valeur totale" value={money(data?.total_value)} />
@@ -225,6 +237,7 @@ export function PatrimonyPage() {
         <MetricCard label="Actifs suivis" value={`${data?.assets.length ?? 0}`} />
       </section>
 
+      {section === "capture" && <>
       <PatrimonyForms
         marketForm={marketForm}
         cashForm={cashForm}
@@ -331,7 +344,8 @@ export function PatrimonyPage() {
         </>
       ) : null}
 
-      <section className="panel chart-panel">
+      </>}
+      {section === "pilotage" && <section className="panel chart-panel">
         <div className="table-toolbar">
           <div className="section-title">Répartition patrimoine</div>
           <div className="filters">
@@ -392,9 +406,9 @@ export function PatrimonyPage() {
             ))}
           </div>
         )}
-      </section>
+      </section>}
 
-      <PatrimonyAssetsTable
+      {section === "assets" && <PatrimonyAssetsTable
         assets={data?.assets ?? []}
         money={money}
         latentPnl={latentPnl}
@@ -402,7 +416,7 @@ export function PatrimonyPage() {
         onRefreshPrice={refreshPrice}
         onEdit={openEdit}
         onDelete={setAssetToDelete}
-      />
+      />}
 
       {editingAsset ? (
         <Modal title="Modifier l'actif" eyebrow={editingAsset.type} onClose={() => setEditingAsset(null)}>

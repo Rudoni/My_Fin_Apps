@@ -475,7 +475,7 @@ export function BrocantePage() {
         </div>
       </section>
 
-      {isMobile && !isSettingsView ? (
+      {!isSettingsView ? (
         <section className="panel mobile-switcher-panel">
           <div className="mobile-section-switcher">
             <button className={mobileSection === "actions" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("actions")}>
@@ -736,6 +736,7 @@ export function BrocantePage() {
         </>
       ) : (
         <>
+          {mobileSection === "pilotage" && <>
           <section className="metric-grid">
             <MetricCard label="Références" value={`${summary?.reference_count ?? 0}`} />
             <MetricCard label="Stock restant" value={`${summary?.stock_quantity ?? 0}`} />
@@ -788,7 +789,8 @@ export function BrocantePage() {
             </ResponsiveContainer>
           </section>
 
-          {view === "binder" ? (
+          </>}
+          {mobileSection === "actions" && (view === "binder" ? (
             <section className="content-grid">
               <form className="panel form-panel" onSubmit={(event) => void submitBinderCard(event)}>
                 <div className="section-title">
@@ -911,9 +913,9 @@ export function BrocantePage() {
               <button className="primary-button">Ajouter la vente</button>
             </form>
           </section>
-          )}
+          ))}
 
-          <section className="panel table-panel">
+          {mobileSection === "inventory" && <section className="panel table-panel">
             <div className="table-toolbar">
               <div className="section-title">{view === "binder" ? "Inventaire binder / top loader" : "Références brocante"}</div>
               <div className="filters">
@@ -1021,7 +1023,7 @@ export function BrocantePage() {
                 </div>
               </div>
             ) : null}
-          </section>
+          </section>}
         </>
       )}
 

@@ -17,6 +17,10 @@ jobs:
       - run: python -m py_compile backend/app/main.py backend/app/core/*.py backend/app/routers/*.py backend/app/services/*.py backend/app/schemas/*.py
         env:
           MY_FIN_APPS_DB_URL: postgresql://postgres:postgres@localhost/postgres
+      - run: python -m unittest discover -s tests -v
+        working-directory: backend
+        env:
+          MY_FIN_APPS_DB_URL: postgresql://test:test@localhost/test
 
   frontend:
     runs-on: ubuntu-latest

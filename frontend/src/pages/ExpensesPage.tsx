@@ -395,7 +395,7 @@ export function ExpensesPage() {
         </div>
       </header>
 
-      {isMobile ? (
+      {(
         <section className="panel mobile-switcher-panel">
           <div className="mobile-section-switcher">
             <button className={mobileSection === "capture" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("capture")}>
@@ -409,9 +409,9 @@ export function ExpensesPage() {
             </button>
           </div>
         </section>
-      ) : null}
+      )}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <section className="metric-grid">
         <MetricCard label="Revenus saisis" value={money(summary?.income_total)} />
         <MetricCard label="Revenus complémentaires" value={money(summary?.complementary_income_total)} hint="Bénéfice revente réalisé" />
@@ -428,7 +428,7 @@ export function ExpensesPage() {
         </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "capture") ? (
+      {(mobileSection === "capture") ? (
       <ExpenseForms
         incomeForm={incomeForm}
         expenseForm={expenseForm}
@@ -442,7 +442,7 @@ export function ExpensesPage() {
       />
       ) : null}
 
-      {(!isMobile || mobileSection === "capture") ? (
+      {(mobileSection === "capture") ? (
       <section className="panel form-panel">
         <div className="section-title">Ajouter une allocation interne</div>
         <p className="section-copy">
@@ -504,7 +504,7 @@ export function ExpensesPage() {
       </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <IncomeDashboard
         incomes={incomes}
         monthlyComplementaryIncomeChart={monthlyComplementaryIncomeChart}
@@ -528,7 +528,7 @@ export function ExpensesPage() {
       />
       ) : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <AllocationDashboard
         allocations={allocations}
         monthlyAllocationChart={monthlyAllocationChart}
@@ -549,7 +549,7 @@ export function ExpensesPage() {
       />
       ) : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <section className="content-grid wide-right">
         <section className="panel chart-panel table-panel">
           <div className="section-title">Dépenses par mois</div>
@@ -579,7 +579,7 @@ export function ExpensesPage() {
       </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "history") ? (
+      {(!isMobile && mobileSection === "history") ? (
       <ExpenseTables
         expenses={expenses}
         money={money}

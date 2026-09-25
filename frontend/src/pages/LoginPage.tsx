@@ -33,6 +33,11 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
 
   return (
     <main className="page-shell login-shell">
+      <section className="login-story">
+        <span className="login-story-mark">MF</span>
+        <h2>Fais grandir<br />tes projets.</h2>
+        <p>Ton quotidien, tes investissements et tes collections. Un seul espace pour garder une vue claire.</p>
+      </section>
       <section className="panel form-panel login-panel">
         <p className="eyebrow">My Fin Apps</p>
         <h1>{mode === "login" ? "Connexion" : "Créer un compte"}</h1>
@@ -50,11 +55,11 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
           ) : null}
           <label>
             Email
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </label>
           <label>
             Mot de passe
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
+            <input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
           </label>
           {error ? <div className="error-box">{error}</div> : null}
           <div className="modal-actions">

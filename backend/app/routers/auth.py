@@ -95,7 +95,7 @@ def logout(
     return {"message": f"Session fermee pour {get_current_user_email(db) or 'utilisateur'}."}
 
 
-@router.patch("/auth/me", response_model=UserRead)
+@router.patch("/me", response_model=UserRead)
 def update_me(payload: UpdateProfilePayload, _user=Depends(require_authenticated_user), db: Session = Depends(get_db)):
     del _user
     try:
@@ -107,7 +107,7 @@ def update_me(payload: UpdateProfilePayload, _user=Depends(require_authenticated
     return user
 
 
-@router.post("/auth/change-password", response_model=MessageResponse)
+@router.post("/change-password", response_model=MessageResponse)
 def change_password(payload: ChangePasswordPayload, _user=Depends(require_authenticated_user), db: Session = Depends(get_db)):
     del _user
     try:
@@ -119,7 +119,7 @@ def change_password(payload: ChangePasswordPayload, _user=Depends(require_authen
     return {"message": "Mot de passe mis à jour."}
 
 
-@router.post("/auth/logout-other-sessions", response_model=MessageResponse)
+@router.post("/logout-other-sessions", response_model=MessageResponse)
 def logout_other_sessions(
     authorization: str | None = Header(default=None),
     _user=Depends(require_authenticated_user),

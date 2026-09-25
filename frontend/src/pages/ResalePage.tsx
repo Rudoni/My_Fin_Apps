@@ -304,7 +304,7 @@ export function ResalePage() {
         </div>
       </header>
 
-      {isMobile ? (
+      {(
         <section className="panel mobile-switcher-panel">
           <div className="mobile-section-switcher">
             <button className={mobileSection === "capture" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("capture")}>
@@ -318,11 +318,11 @@ export function ResalePage() {
             </button>
           </div>
         </section>
-      ) : null}
+      )}
 
       {error ? <div className="error-box">{error}</div> : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <section className="metric-grid">
         <MetricCard label="CA total" value={money(summary?.ca_total)} />
         <MetricCard label="Bénéfice total" value={money(summary?.benefit_total)} />
@@ -355,7 +355,7 @@ export function ResalePage() {
         </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <section className="content-grid">
         <section className="panel chart-panel">
           <div className="section-title">Bénéfice par mois</div>
@@ -386,7 +386,7 @@ export function ResalePage() {
       </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <section className="panel chart-panel full-width-section">
         <div className="section-title">P/L réalisée par jour · mois en cours</div>
         <p className="section-copy">Lecture jour par jour de la plus-value vraiment encaissée ce mois-ci.</p>
@@ -405,7 +405,7 @@ export function ResalePage() {
       </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "pilotage") ? (
+      {(mobileSection === "pilotage") ? (
       <section className="panel table-panel compact-table">
         <div className="section-title">Marge par catégorie</div>
         <div className="table-scroll">
@@ -443,11 +443,11 @@ export function ResalePage() {
       </section>
       ) : null}
 
-      {(!isMobile || mobileSection === "capture") ? (
+      {(mobileSection === "capture") ? (
         <ResaleCreateForm form={form} categories={categories} onChange={setForm} onSubmit={(event) => void handleCreate(event)} />
       ) : null}
 
-      {(!isMobile || mobileSection === "inventory") ? (
+      {(!isMobile && mobileSection === "inventory") ? (
       <ResaleItemsTable
         items={paginatedItems}
         categories={categories}

@@ -34,11 +34,12 @@ def patrimony_summary(db: Session = Depends(get_db)):
 def dashboard_summary(years: list[int] | None = Query(default=None), db: Session = Depends(get_db)):
     budget = get_budget_summary(db, years=years)
     resale = get_resale_summary(db, years=years)
+    current_resale = get_resale_summary(db) if years else resale
     brocante = get_brocante_summary(db, inventory_group=None)
     patrimony_timeline, patrimony_invested_timeline, patrimony_cumulative_invested_timeline = get_patrimony_timeline(db)
     patrimony = get_patrimony_summary(
         db,
-        resale.unsold_value,
+        current_resale.unsold_value,
         brocante["target_stock_value"],
         brocante["remaining_cost_basis"],
         brocante["unrealized_pnl"],

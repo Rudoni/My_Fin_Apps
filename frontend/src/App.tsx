@@ -66,7 +66,7 @@ export function App() {
   function renderCurrentPage() {
     switch (page) {
       case "dashboard":
-        return <DashboardPage />;
+        return <DashboardPage onNavigate={setPage} />;
       case "expenses":
         return <ExpensesPage />;
       case "resale":
@@ -92,7 +92,7 @@ export function App() {
           />
         );
       default:
-        return <DashboardPage />;
+        return <DashboardPage onNavigate={setPage} />;
     }
   }
 

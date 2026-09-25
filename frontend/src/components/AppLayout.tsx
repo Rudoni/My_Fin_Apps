@@ -16,7 +16,7 @@ type AppLayoutProps = {
 };
 
 const navItems: Array<{ id: AppPage; label: string; icon: React.ReactNode }> = [
-  { id: "dashboard", label: "Dashboard", icon: <Home size={18} /> },
+  { id: "dashboard", label: "Vue d’ensemble", icon: <Home size={18} /> },
   { id: "expenses", label: "Dépenses", icon: <ReceiptText size={18} /> },
   { id: "resale", label: "Achat-revente", icon: <BarChart3 size={18} /> },
   { id: "brocante", label: "Stock brocante", icon: <Boxes size={18} /> },
@@ -86,10 +86,11 @@ export function AppLayout({
             {privacyMode ? "Réafficher les chiffres" : "Masquer les chiffres"}
           </span>
         </button>
-        <nav>
+        <nav aria-label="Navigation principale">
           {visibleNavItems.map((item) => (
             <button
               key={item.id}
+              aria-current={page === item.id ? "page" : undefined}
               className={page === item.id ? "nav-item active" : "nav-item"}
               onClick={() => {
                 onPageChange(item.id);
@@ -103,7 +104,7 @@ export function AppLayout({
           ))}
         </nav>
       </aside>
-      <div className="app-content">
+      <div className="app-content" key={page}>
         {children}
         {isMobile ? (
           <nav className="mobile-bottom-nav" aria-label="Navigation principale">

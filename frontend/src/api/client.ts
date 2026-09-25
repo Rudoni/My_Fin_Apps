@@ -58,8 +58,17 @@ export async function apiRequest<T>(path: string, options?: RequestInit): Promis
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `API error ${response.status}`);
+    const body = await response.text();
+    let message = `Une erreur est survenue (${response.status}). Réessaie dans un instant.`;
+    try {
+      const parsed = JSON.parse(body);
+      if (typeof parsed.detail === "string") message = parsed.detail;
+      else if (Array.isArray(parsed.detail)) message = "Certains champs sont invalides. Vérifie les informations saisies.";
+    } catch {
+      // Proxy error pages are not useful messages to display inside the app.
+    }
+    if (response.status === 401) message = "Session expirée ou identifiants invalides. Reconnecte-toi.";
+    throw new Error(message);
   }
 
   if (response.status === 204) {

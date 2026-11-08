@@ -27,7 +27,21 @@ export type Expense = {
   category: string;
   payment_method_id: number;
   payment_method: string;
+  is_recurring: boolean;
 };
+
+export type RecurringExpensePayload = {
+  description_expense: string;
+  price: string;
+  subcategory_id: number;
+  payment_method_id: number;
+  start_month: string;
+  end_month: string | null;
+};
+export type RecurringExpense = RecurringExpensePayload & { recurring_expense_id: number; next_month: string; is_active: boolean };
+export const getRecurringExpenses = () => apiRequest<RecurringExpense[]>("/budget/recurring");
+export const createRecurringExpense = (payload: RecurringExpensePayload) => apiRequest<RecurringExpense>("/budget/recurring", { method: "POST", body: JSON.stringify(payload) });
+export const toggleRecurringExpense = (id: number, is_active: boolean) => apiRequest<RecurringExpense>(`/budget/recurring/${id}`, { method: "PATCH", body: JSON.stringify({ is_active }) });
 
 export type IncomePayload = Omit<Income, "income_id">;
 export type AllocationPayload = Omit<Allocation, "allocation_id">;

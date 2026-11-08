@@ -200,6 +200,7 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
         break_even_progress_pct = (ca_total / purchase_total_all) * Decimal("100")
 
     ca_by_year: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    ca_by_month: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     benefit_by_year: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     benefit_by_month: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     realized_pnl_by_day_current_month: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -224,6 +225,7 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
             year = str(item.sale_date.year)
             month = item.sale_date.strftime("%Y-%m")
             ca_by_year[year] += item.sale_total
+            ca_by_month[month] += item.sale_total
             benefit_by_year[year] += item.benefit
             benefit_by_month[month] += item.benefit
             if item.sale_date.year == today.year and item.sale_date.month == today.month:
@@ -275,6 +277,7 @@ def get_summary(db: Session, years: list[int] | None = None) -> ResaleSummary:
         break_even_progress_pct=break_even_progress_pct,
         break_even_possible_with_target=(ca_total + unsold_value) >= purchase_total_all if purchase_total_all > 0 else True,
         ca_by_year=[TimeMetric(label=key, value=value) for key, value in sorted(ca_by_year.items())],
+        ca_by_month=[TimeMetric(label=key, value=value) for key, value in sorted(ca_by_month.items())],
         benefit_by_year=[TimeMetric(label=key, value=value) for key, value in sorted(benefit_by_year.items())],
         benefit_by_month=[TimeMetric(label=key, value=value) for key, value in sorted(benefit_by_month.items())],
         realized_pnl_by_day_current_month=[

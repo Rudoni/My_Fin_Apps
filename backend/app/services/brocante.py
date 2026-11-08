@@ -151,6 +151,7 @@ def get_summary(db: Session, category_id: int | None = None, search: str | None 
             )
             SELECT
                 bm.movement_date,
+                SUM(bm.total_amount * bi.ownership_share) AS revenue,
                 SUM(
                     (bm.total_amount * bi.ownership_share) -
                     CASE
@@ -165,8 +166,6 @@ def get_summary(db: Session, category_id: int | None = None, search: str | None 
             LEFT JOIN purchase_totals pt ON pt.brocante_item_id = bm.brocante_item_id
             WHERE bi.is_active = TRUE
               AND bm.movement_type = 'SALE'
-              AND EXTRACT(YEAR FROM bm.movement_date)::int = :current_year
-              AND EXTRACT(MONTH FROM bm.movement_date)::int = :current_month
               {filter_clause}
             GROUP BY bm.movement_date
             ORDER BY bm.movement_date ASC
@@ -174,6 +173,13 @@ def get_summary(db: Session, category_id: int | None = None, search: str | None 
         ),
         {**params, "current_year": today.year, "current_month": today.month},
     ).mappings().all()
+
+    revenue_by_month: dict[str, Decimal] = {}
+    profit_by_month: dict[str, Decimal] = {}
+    for row in pnl_rows:
+        month = row["movement_date"].strftime("%Y-%m")
+        revenue_by_month[month] = revenue_by_month.get(month, Decimal("0")) + money(row["revenue"])
+        profit_by_month[month] = profit_by_month.get(month, Decimal("0")) + money(row["realized_pnl"])
 
     purchase_total = sum((money(row["purchase_total"]) for row in items), Decimal("0"))
     sales_total = sum((money(row["sales_total"]) for row in items), Decimal("0"))
@@ -197,5 +203,8 @@ def get_summary(db: Session, category_id: int | None = None, search: str | None 
         "break_even_possible_with_target": (sales_total + target_stock_value) >= purchase_total if purchase_total > 0 else True,
         "realized_pnl_by_day_current_month": [
             TimeMetric(label=row["movement_date"].strftime("%Y-%m-%d"), value=money(row["realized_pnl"])) for row in pnl_rows
+            if row["movement_date"].year == today.year and row["movement_date"].month == today.month
         ],
+        "ca_by_month": [TimeMetric(label=key, value=value) for key, value in sorted(revenue_by_month.items())],
+        "benefit_by_month": [TimeMetric(label=key, value=value) for key, value in sorted(profit_by_month.items())],
     }

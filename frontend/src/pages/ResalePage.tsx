@@ -14,6 +14,7 @@ import {
   updateResaleItem,
 } from "../api/resale";
 import { MetricCard } from "../components/MetricCard";
+import { MonthlySalesChart } from "../components/MonthlySalesChart";
 import { Modal } from "../components/Modal";
 import { YearFilter } from "../components/YearFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -321,6 +322,7 @@ export function ResalePage() {
       )}
 
       {error ? <div className="error-box">{error}</div> : null}
+      {mobileSection === "pilotage" && <MonthlySalesChart revenue={summary?.ca_by_month ?? []} profit={summary?.benefit_by_month ?? []} />}
 
       {(mobileSection === "pilotage") ? (
       <section className="metric-grid">

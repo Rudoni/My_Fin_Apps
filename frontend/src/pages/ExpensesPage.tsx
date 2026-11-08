@@ -30,10 +30,10 @@ import { AllocationDashboard } from "./expenses/AllocationDashboard";
 import { ExpenseForms } from "./expenses/ExpenseForms";
 import { IncomeDashboard } from "./expenses/IncomeDashboard";
 import { ExpenseTables } from "./expenses/ExpenseTables";
+import { RecurringExpenses } from "./expenses/RecurringExpenses";
 
 const euroFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const today = new Date().toISOString().slice(0, 10);
-const currentYear = new Date().getFullYear();
 const INCOME_PAGE_SIZE_OPTIONS = [20, 50, 100];
 const ALLOCATION_PAGE_SIZE_OPTIONS = [20, 50, 100];
 const ALLOCATION_GROUP_OPTIONS = [
@@ -93,6 +93,8 @@ function applyExpenseToSummary(current: BudgetSummary | null, expense: Expense, 
   return {
     ...current,
     expense_total: String(Number(current.expense_total ?? 0) + delta),
+    recurring_expense_total: String(Number(current.recurring_expense_total ?? 0) + (expense.is_recurring ? delta : 0)),
+    regular_expense_total: String(Number(current.regular_expense_total ?? 0) + (expense.is_recurring ? 0 : delta)),
     cashflow_total: String(Number(current.cashflow_total ?? 0) - delta),
     cashflow_with_complementary: String(Number(current.cashflow_with_complementary ?? 0) - delta),
     cashflow_after_allocations: String(Number(current.cashflow_after_allocations ?? 0) - delta),
@@ -105,13 +107,14 @@ export function ExpensesPage() {
   const isMobile = useIsMobile();
   const latestContentRequestRef = useRef(0);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [subcategories, setSubcategories] = useState<OptionItem[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<OptionItem[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [selectedYears, setSelectedYears] = useState<number[]>([currentYear]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [incomeForm, setIncomeForm] = useState({ description_income: "", amount: "", income_date: today, income_type: "Salaire" });
   const [allocationForm, setAllocationForm] = useState({
     description_allocation: "",
@@ -142,22 +145,27 @@ export function ExpensesPage() {
   const [incomePageSize, setIncomePageSize] = useState(20);
   const [allocationPage, setAllocationPage] = useState(1);
   const [allocationPageSize, setAllocationPageSize] = useState(20);
-  const [mobileSection, setMobileSection] = useState<"capture" | "history" | "pilotage">("capture");
+  const [mobileSection, setMobileSection] = useState<"capture" | "history" | "pilotage" | "recurring">("capture");
 
   async function loadContent(years = selectedYears) {
+    setLoadError(null);
     const requestId = latestContentRequestRef.current + 1;
     latestContentRequestRef.current = requestId;
-    const [summaryData, incomesData, allocationsData, expensesData] = await Promise.all([
-      getBudgetSummary(years),
-      getIncomes(years),
-      getAllocations(years),
-      getExpenses(years),
-    ]);
-    if (latestContentRequestRef.current !== requestId) return;
-    setSummary(summaryData);
-    setIncomes(incomesData);
-    setAllocations(allocationsData);
-    setExpenses(expensesData);
+    try {
+      const [summaryData, incomesData, allocationsData, expensesData] = await Promise.all([
+        getBudgetSummary(years),
+        getIncomes(years),
+        getAllocations(years),
+        getExpenses(years),
+      ]);
+      if (latestContentRequestRef.current !== requestId) return;
+      setSummary(summaryData);
+      setIncomes(incomesData);
+      setAllocations(allocationsData);
+      setExpenses(expensesData);
+    } catch (err) {
+      if (latestContentRequestRef.current === requestId) setLoadError(err instanceof Error ? err.message : "Impossible de charger les dépenses.");
+    }
   }
 
   async function loadReferenceData() {
@@ -363,24 +371,6 @@ export function ExpensesPage() {
   const averageAllocationPerEntry = allocations.length ? totalAllocation / allocations.length : 0;
   const incomeTotalPages = Math.max(1, Math.ceil(incomes.length / incomePageSize));
   const allocationTotalPages = Math.max(1, Math.ceil(allocations.length / allocationPageSize));
-  const recentBudgetEvents = [
-    ...expenses.slice(0, 8).map((expense) => ({
-      id: `expense-${expense.expense_id}`,
-      title: expense.description_expense,
-      subtitle: `${expense.subcategory} · ${expense.expense_date}`,
-      value: money(expense.price),
-      type: "Dépense",
-    })),
-    ...allocations.slice(0, 6).map((allocation) => ({
-      id: `allocation-${allocation.allocation_id}`,
-      title: allocation.description_allocation,
-      subtitle: `${allocation.allocation_group} → ${allocation.allocation_target} · ${allocation.allocation_date}`,
-      value: money(allocation.amount),
-      type: "Allocation",
-    })),
-  ]
-    .sort((left, right) => right.subtitle.localeCompare(left.subtitle))
-    .slice(0, 10);
 
   return (
     <main className="page-shell">
@@ -407,9 +397,18 @@ export function ExpensesPage() {
             <button className={mobileSection === "pilotage" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("pilotage")}>
               Pilotage
             </button>
+            <button className={mobileSection === "recurring" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("recurring")}>Récurrentes</button>
           </div>
         </section>
       )}
+
+      {loadError && <div className="error-box" role="alert">{loadError}</div>}
+      <section className="mobile-summary-strip">
+        <MetricCard label="Dépenses totales" value={money(summary?.expense_total)} hint="Période sélectionnée" />
+        <MetricCard label="Récurrentes" value={money(summary?.recurring_expense_total)} hint="Loyer, abonnements…" />
+        <MetricCard label="Courantes" value={money(summary?.regular_expense_total)} hint="Restaurants, essence…" />
+      </section>
+      {mobileSection === "recurring" && <RecurringExpenses subcategories={subcategories} paymentMethods={paymentMethods} onChanged={async () => { await Promise.all([loadContent(), refreshAvailableYears()]); }} />}
 
       {(mobileSection === "pilotage") ? (
       <section className="metric-grid">
@@ -579,35 +578,13 @@ export function ExpensesPage() {
       </section>
       ) : null}
 
-      {(!isMobile && mobileSection === "history") ? (
+      {(mobileSection === "history") ? (
       <ExpenseTables
         expenses={expenses}
         money={money}
         onEditExpense={openExpenseEdit}
         onDeleteExpense={setExpenseToDelete}
       />
-      ) : null}
-
-      {isMobile && mobileSection === "history" ? (
-        <section className="panel mobile-list-panel">
-          <div className="section-title">Derniers mouvements</div>
-          <div className="mobile-inventory-list">
-            {recentBudgetEvents.map((item) => (
-              <article key={item.id} className="mobile-item-card">
-                <div className="mobile-item-card-head">
-                  <div>
-                    <strong>{item.title}</strong>
-                    <div className="mobile-item-badges">
-                      <span className="status-pill">{item.type}</span>
-                    </div>
-                  </div>
-                  <strong>{item.value}</strong>
-                </div>
-                <p className="section-copy">{item.subtitle}</p>
-              </article>
-            ))}
-          </div>
-        </section>
       ) : null}
 
       {editingIncome ? (

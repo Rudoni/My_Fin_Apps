@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.current_user import get_current_user_id
+from app.services.recurring_expenses import materialize
 from app.schemas.common import NameMetric, TimeMetric
 from app.services.resale import get_summary as get_resale_summary, list_items as list_resale_items
 
@@ -67,6 +68,7 @@ def get_brocante_realized_pnl_by_month(db: Session, years: list[int] | None = No
 
 
 def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
+    materialize(db, get_current_user_id(db))
     params = {"years": years or []}
     user_id = get_current_user_id(db)
     resale_summary = get_resale_summary(db, years=years)
@@ -91,7 +93,8 @@ def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
     expenses = db.execute(
         text(
             f"""
-            SELECT e.price, e.expense_date, s.name_subcat, c.name_cat
+            SELECT e.price, e.expense_date, s.name_subcat, c.name_cat,
+                EXISTS (SELECT 1 FROM recurring_expense_occurrence o WHERE o.expense_id = e.expense_id) AS is_recurring
             FROM expenses e
             JOIN subcategory s ON e.subcategory_id = s.subcategory_id
             JOIN category c ON s.category_id = c.category_id
@@ -157,6 +160,8 @@ def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
         "complementary_income_total": complementary_income_total,
         "total_income_with_complementary": total_income_with_complementary,
         "expense_total": expense_total,
+        "recurring_expense_total": sum((money(row["price"]) for row in expenses if row["is_recurring"]), Decimal("0")),
+        "regular_expense_total": sum((money(row["price"]) for row in expenses if not row["is_recurring"]), Decimal("0")),
         "allocation_total": allocation_total,
         "resale_purchase_total": resale_purchase_total,
         "investment_effort_total": investment_effort_total,
@@ -190,6 +195,7 @@ def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
 
 
 def list_budget_years(db: Session) -> list[int]:
+    materialize(db, get_current_user_id(db))
     user_id = get_current_user_id(db)
     years = set(
         db.execute(

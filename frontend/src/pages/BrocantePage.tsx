@@ -17,6 +17,7 @@ import {
   updateBrocanteItem,
 } from "../api/brocante";
 import { MetricCard } from "../components/MetricCard";
+import { MonthlySalesChart } from "../components/MonthlySalesChart";
 import { Modal } from "../components/Modal";
 import { useIsMobile } from "../hooks/useIsMobile";
 
@@ -492,6 +493,7 @@ export function BrocantePage() {
       ) : null}
 
       {error ? <div className="error-box">{error}</div> : null}
+      {!isSettingsView && mobileSection === "pilotage" && <MonthlySalesChart revenue={summary?.ca_by_month ?? []} profit={summary?.benefit_by_month ?? []} />}
 
       {isSettingsView ? (
         <section className="content-grid">

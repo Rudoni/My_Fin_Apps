@@ -7,6 +7,20 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: myfin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d myfin_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,10 +31,14 @@ jobs:
       - run: python -m py_compile backend/app/main.py backend/app/core/*.py backend/app/routers/*.py backend/app/services/*.py backend/app/schemas/*.py
         env:
           MY_FIN_APPS_DB_URL: postgresql://postgres:postgres@localhost/postgres
+      - run: psql -h localhost -U test -d myfin_test -v ON_ERROR_STOP=1 -f init.sql
+        env:
+          PGPASSWORD: test
       - run: python -m unittest discover -s tests -v
         working-directory: backend
         env:
           MY_FIN_APPS_DB_URL: postgresql://test:test@localhost/test
+          MY_FIN_TEST_DB_URL: postgresql+psycopg://test:test@localhost/myfin_test
 
   frontend:
     runs-on: ubuntu-latest

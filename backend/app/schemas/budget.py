@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
+from pydantic import model_validator
 
 
 class OptionItem(BaseModel):
@@ -69,6 +70,34 @@ class ExpenseRead(BaseModel):
     category: str
     payment_method_id: int
     payment_method: str
+    is_recurring: bool = False
+
+
+class RecurringExpenseCreate(BaseModel):
+    description_expense: str = Field(min_length=1, max_length=200)
+    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    subcategory_id: int = Field(gt=0)
+    payment_method_id: int = Field(gt=0)
+    start_month: date
+    end_month: date | None = None
+
+    @model_validator(mode="after")
+    def validate_months(self):
+        if self.start_month.day != 1 or self.start_month.year < 2000:
+            raise ValueError("Le début doit être le premier d'un mois à partir de 2000.")
+        if self.end_month and (self.end_month.day != 1 or self.end_month < self.start_month):
+            raise ValueError("La fin doit être un premier du mois, après le début.")
+        return self
+
+
+class RecurringExpenseUpdate(BaseModel):
+    is_active: bool
+
+
+class RecurringExpenseRead(RecurringExpenseCreate):
+    recurring_expense_id: int
+    next_month: date
+    is_active: bool
 
 
 class ExpenseCreate(BaseModel):

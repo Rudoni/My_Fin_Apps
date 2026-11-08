@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.core.current_user import get_current_user_id
 from app.core.db import get_db
+from app.services.recurring_expenses import materialize, current_month
+from app.schemas.budget import RecurringExpenseCreate, RecurringExpenseUpdate, RecurringExpenseRead
 from app.schemas.budget import (
     AllocationCreate,
     AllocationRead,
@@ -20,6 +22,44 @@ from app.services.budget import has_budget_allocation_table, list_budget_years, 
 
 
 router = APIRouter(tags=["budget"])
+
+
+@router.get("/budget/recurring", response_model=list[RecurringExpenseRead])
+def list_recurring(db: Session = Depends(get_db)):
+    user_id = get_current_user_id(db)
+    materialize(db, user_id)
+    return db.execute(text("SELECT * FROM recurring_expense WHERE user_id = :user_id ORDER BY recurring_expense_id DESC"), {"user_id": user_id}).mappings().all()
+
+
+@router.post("/budget/recurring", response_model=RecurringExpenseRead, status_code=201)
+def create_recurring(payload: RecurringExpenseCreate, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(db)
+    for table, column, value in [("subcategory", "subcategory_id", payload.subcategory_id), ("payment_method", "id", payload.payment_method_id)]:
+        if not db.execute(text(f"SELECT 1 FROM {table} WHERE {column} = :id"), {"id": value}).scalar():
+            raise HTTPException(status_code=422, detail="Catégorie ou moyen de paiement invalide.")
+    row = db.execute(text("""
+        INSERT INTO recurring_expense (user_id, description_expense, price, subcategory_id, payment_method_id, start_month, end_month, next_month)
+        VALUES (:user_id, :description_expense, :price, :subcategory_id, :payment_method_id, :start_month, :end_month, :start_month)
+        RETURNING recurring_expense_id
+    """), {**payload.model_dump(), "user_id": user_id}).scalar_one()
+    materialize(db, user_id)
+    return db.execute(text("SELECT * FROM recurring_expense WHERE recurring_expense_id = :id AND user_id = :user_id"), {"id": row, "user_id": user_id}).mappings().one()
+
+
+@router.patch("/budget/recurring/{rule_id}", response_model=RecurringExpenseRead)
+def toggle_recurring(rule_id: int, payload: RecurringExpenseUpdate, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(db)
+    materialize(db, user_id)
+    row = db.execute(text("""
+        UPDATE recurring_expense SET is_active = :is_active,
+            next_month = CASE WHEN :is_active THEN GREATEST(next_month, :month) ELSE next_month END
+        WHERE recurring_expense_id = :id AND user_id = :user_id
+        RETURNING *
+    """), {"id": rule_id, "user_id": user_id, "is_active": payload.is_active, "month": current_month()}).mappings().first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Dépense récurrente introuvable.")
+    materialize(db, user_id)
+    return db.execute(text("SELECT * FROM recurring_expense WHERE recurring_expense_id = :id AND user_id = :user_id"), {"id": rule_id, "user_id": user_id}).mappings().one()
 
 
 def get_expense_row(db: Session, expense_id: int):
@@ -232,11 +272,13 @@ def delete_allocation(allocation_id: int, db: Session = Depends(get_db)):
 @router.get("/budget/expenses", response_model=list[ExpenseRead])
 def list_expenses(years: list[int] | None = Query(default=None), db: Session = Depends(get_db)):
     user_id = get_current_user_id(db)
+    materialize(db, user_id)
     rows = db.execute(
         text(
             f"""
             SELECT
                 e.expense_id,
+                EXISTS (SELECT 1 FROM recurring_expense_occurrence o WHERE o.expense_id = e.expense_id) AS is_recurring,
                 e.description_expense,
                 e.price,
                 e.expense_date,

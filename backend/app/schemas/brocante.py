@@ -88,4 +88,6 @@ class BrocanteSummary(BaseModel):
     break_even_remaining: Decimal
     break_even_progress_pct: Decimal
     break_even_possible_with_target: bool
+    ca_by_month: list[TimeMetric] = []
+    benefit_by_month: list[TimeMetric] = []
     realized_pnl_by_day_current_month: list[TimeMetric]

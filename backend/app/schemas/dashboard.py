@@ -12,6 +12,8 @@ class BudgetSummary(BaseModel):
     complementary_income_total: Decimal
     total_income_with_complementary: Decimal
     expense_total: Decimal
+    recurring_expense_total: Decimal = Decimal("0")
+    regular_expense_total: Decimal = Decimal("0")
     allocation_total: Decimal
     resale_purchase_total: Decimal
     investment_effort_total: Decimal

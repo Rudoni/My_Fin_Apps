@@ -22,6 +22,8 @@ export type BudgetSummary = {
   complementary_income_total: string;
   total_income_with_complementary: string;
   expense_total: string;
+  recurring_expense_total: string;
+  regular_expense_total: string;
   allocation_total: string;
   resale_purchase_total: string;
   investment_effort_total: string;

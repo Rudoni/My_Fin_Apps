@@ -71,6 +71,7 @@ export type ResaleSummary = {
   break_even_progress_pct: string;
   break_even_possible_with_target: boolean;
   ca_by_year: TimeMetric[];
+  ca_by_month: TimeMetric[];
   benefit_by_year: TimeMetric[];
   benefit_by_month: TimeMetric[];
   realized_pnl_by_day_current_month: TimeMetric[];

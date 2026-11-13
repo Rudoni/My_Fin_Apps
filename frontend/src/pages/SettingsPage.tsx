@@ -162,6 +162,8 @@ export function SettingsPage({
         </section>
       </section>
 
+      <details className="panel settings-advanced">
+        <summary>Réglages avancés <span>Environnement, accès API et navigation</span></summary>
       <section className="settings-grid">
         <section className="panel settings-card">
           <div className="section-title">Environnement actuel</div>
@@ -231,6 +233,7 @@ export function SettingsPage({
           </div>
         </section>
       </section>
+      </details>
     </main>
   );
 }

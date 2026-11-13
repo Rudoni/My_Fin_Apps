@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { getPatrimonySummary, PatrimonySummary } from "../api/dashboard";
 import {
+  addAssetPurchase,
   createCashAsset,
   createMarketAsset,
   createPhysicalAsset,
@@ -78,6 +79,34 @@ export function PatrimonyPage() {
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<"assets" | "capture" | "pilotage">("assets");
   const [saving, setSaving] = useState(false);
+  const [purchaseAsset, setPurchaseAsset] = useState<PatrimonyAsset | null>(null);
+  const [purchaseForm, setPurchaseForm] = useState({ quantity: "", buy_unit_price: "", current_unit_price: "", valuation_date: today });
+  const [purchaseSaving, setPurchaseSaving] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  function openPurchase(asset: PatrimonyAsset) {
+    const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    setPurchaseForm({ quantity: "", buy_unit_price: "", current_unit_price: "", valuation_date: localDate });
+    setPurchaseError(null);
+    setPurchaseAsset(asset);
+  }
+
+  async function submitPurchase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (purchaseSaving || purchaseAsset?.asset_id == null) return;
+    setPurchaseSaving(true);
+    setPurchaseError(null);
+    try {
+      await addAssetPurchase(purchaseAsset.asset_id, { ...purchaseForm, current_unit_price: purchaseForm.current_unit_price || null });
+      setPurchaseAsset(null);
+      await load();
+    } catch (err) {
+      setPurchaseError(err instanceof Error ? err.message : "Impossible d'enregistrer cet achat.");
+    } finally {
+      setPurchaseSaving(false);
+    }
+  }
 
   async function load() {
     try {
@@ -428,7 +457,25 @@ export function PatrimonyPage() {
         onRefreshPrice={refreshPrice}
         onEdit={openEdit}
         onDelete={setAssetToDelete}
+        onPurchase={openPurchase}
       />}
+
+      {purchaseAsset && <Modal title={`Acheter ${purchaseAsset.name}`} eyebrow="Renforcer ma position" onClose={() => { if (!purchaseSaving) setPurchaseAsset(null); }}>
+        <form className="modal-form" onSubmit={(event) => void submitPurchase(event)}>
+          <p className="section-copy">Cet achat s'ajoute à ta position existante. Le symbole et le type de placement sont conservés automatiquement.</p>
+          {purchaseError && <div role="alert" className="error-box">{purchaseError}</div>}
+          <fieldset disabled={purchaseSaving} className="purchase-fields">
+            <div className="form-row">
+              <label>Quantité achetée<input autoFocus required type="number" min="0.00000001" step="0.00000001" value={purchaseForm.quantity} onChange={event => setPurchaseForm({ ...purchaseForm, quantity: event.target.value })} /></label>
+              <label>Prix unitaire payé (€), frais inclus<input required type="number" min="0" step="0.00000001" value={purchaseForm.buy_unit_price} onChange={event => setPurchaseForm({ ...purchaseForm, buy_unit_price: event.target.value })} /></label>
+            </div>
+            <label>Date d'achat<input required type="date" value={purchaseForm.valuation_date} onChange={event => setPurchaseForm({ ...purchaseForm, valuation_date: event.target.value })} /></label>
+            <label>Cours actuel unitaire (€), facultatif<input type="number" min="0.00000001" step="0.00000001" placeholder="Sinon, cours EUR automatique" value={purchaseForm.current_unit_price} onChange={event => setPurchaseForm({ ...purchaseForm, current_unit_price: event.target.value })} /></label>
+          </fieldset>
+          <div className="portfolio-preview"><span>Montant de cet achat</span><strong className="sensitive-value">{money(String(Number(purchaseForm.quantity || 0) * Number(purchaseForm.buy_unit_price || 0)))}</strong><small>La quantité détenue et le PRU seront recalculés après l'enregistrement.</small></div>
+          <div className="modal-actions"><button disabled={purchaseSaving} className="ghost-button" type="button" onClick={() => setPurchaseAsset(null)}>Annuler</button><button disabled={purchaseSaving} className="primary-button" type="submit">{purchaseSaving ? "Enregistrement…" : "Ajouter cet achat"}</button></div>
+        </form>
+      </Modal>}
 
       {editingAsset ? (
         <Modal title="Modifier l'actif" eyebrow={editingAsset.type} onClose={() => setEditingAsset(null)}>

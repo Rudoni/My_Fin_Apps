@@ -268,7 +268,9 @@ kbd { font: inherit; font-size: .65rem; border: 1px solid var(--line); border-ra
 .portfolio-position-details dt { color: var(--muted); }
 .portfolio-position-details dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
 .portfolio-updated { margin-top: auto; padding-top: 18px; }
-.portfolio-position footer { display: flex; gap: 6px; border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+.portfolio-position footer { display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+.purchase-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; }
+.portfolio-position footer .portfolio-buy { background: var(--ink); color: white; border-color: var(--ink); }
 .portfolio-position footer button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 8px; font-size: .72rem; background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); min-height: 40px; }
 .portfolio-position footer button:last-child { margin-left: auto; }
 .portfolio-preview { display: grid; gap: 8px; padding: 18px; background: #eef4e6; border-radius: 14px; font-size: .8rem; }
@@ -281,6 +283,40 @@ kbd { font: inherit; font-size: .65rem; border: 1px solid var(--line); border-ra
   .portfolio-search { width: 100%; }
   .portfolio-search input { flex: 1; width: 100%; min-width: 0; }
   .portfolio-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.kpi-group { min-width: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); overflow: hidden; }
+.kpi-group > header { padding: 18px 22px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); background: linear-gradient(110deg, #f0f5e9, #fff 80%); }
+.kpi-group h2 { margin: 0; font-size: .9rem; font-weight: 650; }
+.kpi-group header p { margin: 0; font-size: .72rem; color: var(--muted); line-height: 1.5; max-width: 500px; }
+.kpi-group-values { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }
+.kpi-group-values .metric-card { border: 0; border-right: 1px solid var(--line); border-radius: 0; padding: 18px 22px; background: transparent; }
+.kpi-group-values .metric-card:last-child { border-right: 0; }
+.kpi-group-values .metric-card strong { font-size: 1.3rem; margin-top: 8px; }
+.kpi-group-values .metric-card small { font-size: .68rem; max-width: 28ch; }
+.sales-dashboard h2, .category-breakdown h2, .dashboard-section-title { font: 500 clamp(1.5rem, 2vw, 2rem)/1.2 "Iowan Old Style", Georgia, serif; letter-spacing: -.035em; margin: 6px 0 18px; }
+.category-breakdown ul { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 18px; max-height: 360px; overflow-y: auto; }
+.category-breakdown li > div:first-child { display: flex; justify-content: space-between; gap: 16px; font-size: .78rem; }
+.category-breakdown li strong { white-space: nowrap; font-weight: 600; }
+.category-breakdown li small { display: block; text-align: right; font-size: .65rem; color: var(--muted); }
+.category-breakdown-track { height: 5px; background: #edf2e7; border-radius: 6px; margin: 9px 0 5px; overflow: hidden; }
+.category-breakdown-track span { height: 100%; display: block; background: #6d8b57; border-radius: inherit; }
+.sales-chart-controls { display: flex; justify-content: space-between; gap: 16px; align-items: center; flex-wrap: wrap; padding: 10px 0 20px; }
+.sales-chart-controls .section-copy { margin: 0; font-size: .76rem; }
+.sales-chart-note { display: block; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; font-size: .68rem; }
+.settings-advanced > summary { cursor: pointer; font-weight: 650; padding: 4px; }
+.settings-advanced > summary span { display: block; color: var(--muted); font-size: .75rem; font-weight: 400; margin-top: 6px; }
+.settings-advanced > .settings-grid { margin-top: 22px; }
+.settings-card .strategy-row strong { overflow-wrap: anywhere; min-width: 0; }
+.settings-card .form-panel { background: transparent; border: 0; box-shadow: none; padding: 0; }
+@media (max-width: 900px) {
+  .kpi-group > header { display: block; padding: 14px 16px; }
+  .kpi-group header p { margin-top: 5px; }
+  .kpi-group-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi-group-values .metric-card { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .kpi-group-values .metric-card:nth-child(even) { border-right: 0; }
+  .kpi-group-values .metric-card strong { font-size: 1.12rem; }
+  .sales-chart-controls > .studio-tabs { display: flex; width: 100%; }
+  .sales-chart-controls > .studio-tabs button { flex: 1; padding: 10px 6px; font-size: .7rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

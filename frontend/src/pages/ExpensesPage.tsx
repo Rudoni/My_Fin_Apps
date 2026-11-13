@@ -23,6 +23,8 @@ import {
   updateIncome,
 } from "../api/budget";
 import { MetricCard } from "../components/MetricCard";
+import { KpiGroup } from "../components/KpiGroup";
+import { CategoryBreakdown } from "../components/CategoryBreakdown";
 import { Modal } from "../components/Modal";
 import { YearFilter } from "../components/YearFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -403,28 +405,21 @@ export function ExpensesPage() {
       )}
 
       {loadError && <div className="error-box" role="alert">{loadError}</div>}
-      <section className="mobile-summary-strip">
+      <KpiGroup title="Ton quotidien" description="Le total se décompose en dépenses récurrentes et courantes, sur la période sélectionnée.">
         <MetricCard label="Dépenses totales" value={money(summary?.expense_total)} hint="Période sélectionnée" />
         <MetricCard label="Récurrentes" value={money(summary?.recurring_expense_total)} hint="Loyer, abonnements…" />
         <MetricCard label="Courantes" value={money(summary?.regular_expense_total)} hint="Restaurants, essence…" />
-      </section>
+      </KpiGroup>
       {mobileSection === "recurring" && <RecurringExpenses subcategories={subcategories} paymentMethods={paymentMethods} onChanged={async () => { await Promise.all([loadContent(), refreshAvailableYears()]); }} />}
 
       {(mobileSection === "pilotage") ? (
-      <section className="metric-grid">
+      <KpiGroup title="Équilibre du budget" description="Distinguer les revenus, les dépenses et les transferts vers tes investissements.">
         <MetricCard label="Revenus saisis" value={money(summary?.income_total)} />
         <MetricCard label="Revenus complémentaires" value={money(summary?.complementary_income_total)} hint="Bénéfice revente réalisé" />
-        <MetricCard label="Dépenses total" value={money(summary?.expense_total)} />
         <MetricCard label="Alloué / investi" value={money(summary?.allocation_total)} hint="Transferts internes hors dépenses" />
         <MetricCard label="Cashflow enrichi" value={money(summary?.cashflow_with_complementary)} />
         <MetricCard label="Reste après allocation" value={money(summary?.cashflow_after_allocations)} />
-      </section>
-      ) : isMobile ? (
-        <section className="mobile-summary-strip">
-          <MetricCard label="Dépenses" value={money(summary?.expense_total)} />
-          <MetricCard label="Alloué" value={money(summary?.allocation_total)} />
-          <MetricCard label="Reste libre" value={money(summary?.cashflow_after_allocations)} />
-        </section>
+      </KpiGroup>
       ) : null}
 
       {(mobileSection === "capture") ? (
@@ -549,9 +544,9 @@ export function ExpensesPage() {
       ) : null}
 
       {(mobileSection === "pilotage") ? (
-      <section className="content-grid wide-right">
+      <section className="studio-chart-grid">
         <section className="panel chart-panel table-panel">
-          <div className="section-title">Dépenses par mois</div>
+          <p className="eyebrow">Dans le temps</p><h2 className="dashboard-section-title">Le rythme de tes dépenses</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={monthlyExpenseChart}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -563,18 +558,7 @@ export function ExpensesPage() {
           </ResponsiveContainer>
         </section>
 
-        <section className="panel chart-panel table-panel">
-          <div className="section-title">Dépenses par catégorie</div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={(summary?.expense_by_category ?? []).map((row) => ({ name: row.name, value: Number(row.value) }))}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => money(String(value))} />
-              <Bar dataKey="value" fill="#b45309" radius={[8, 8, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </section>
+        <CategoryBreakdown rows={summary?.expense_by_category ?? []} />
       </section>
       ) : null}
 

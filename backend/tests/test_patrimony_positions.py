@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 from app.routers import patrimony
-from app.schemas.patrimony import MarketAssetCreate
+from app.schemas.patrimony import MarketAssetCreate, MarketPurchaseCreate
 from app.services.position_cost import remaining_cost
 from app.services import patrimony as summary_service
 
@@ -15,6 +15,37 @@ def movement(kind, units, amount, fees=0):
 
 
 class PositionTests(unittest.TestCase):
+    def test_purchase_existing_asset_reuses_identity_without_upsert(self):
+        db = MagicMock()
+        db.execute.return_value.mappings.return_value.first.return_value = {"name_asset": "Existing ETF", "ticker": "EXISTING", "code": "ETF"}
+        db.execute.return_value.scalar_one.return_value = Decimal("12")
+        payload = MarketPurchaseCreate(quantity=2, buy_unit_price=100, current_unit_price=120, valuation_date=date(2023, 1, 1))
+        with patch.object(patrimony, "get_current_user_id", return_value=42), patch.object(patrimony, "get_or_create_market_asset") as upsert, patch.object(patrimony, "upsert_market_valuation") as valuation:
+            result = patrimony.add_asset_purchase(7, payload, db)
+        upsert.assert_not_called()
+        self.assertEqual(result.asset_id, 7)
+        self.assertEqual(db.execute.call_args_list[0].args[1], {"asset_id": 7, "user_id": 42})
+        self.assertIn("a.user_id = :user_id", str(db.execute.call_args_list[0].args[0]))
+        valuation.assert_called_once_with(db, 7, date.today(), Decimal("12"), Decimal("120"), "manual")
+
+    def test_purchase_missing_or_foreign_asset_is_rejected(self):
+        db = MagicMock()
+        db.execute.return_value.mappings.return_value.first.return_value = None
+        payload = MarketPurchaseCreate(quantity=2, buy_unit_price=100, valuation_date=date.today())
+        with patch.object(patrimony, "get_current_user_id", return_value=42), self.assertRaises(HTTPException) as error:
+            patrimony.add_asset_purchase(7, payload, db)
+        self.assertEqual(error.exception.status_code, 404)
+        db.commit.assert_not_called()
+
+    def test_purchase_cash_asset_is_rejected(self):
+        db = MagicMock()
+        db.execute.return_value.mappings.return_value.first.return_value = {"name_asset": "Cash", "ticker": None, "code": "CASH"}
+        payload = MarketPurchaseCreate(quantity=2, buy_unit_price=100, valuation_date=date.today())
+        with patch.object(patrimony, "get_current_user_id", return_value=42), self.assertRaises(HTTPException) as error:
+            patrimony.add_asset_purchase(7, payload, db)
+        self.assertEqual(error.exception.status_code, 400)
+        db.commit.assert_not_called()
+
     def test_multiple_lots_and_partial_sale_use_remaining_cost(self):
         rows = [movement("BUY", 10, 1000), movement("BUY", 10, 2000), movement("SELL", 5, 1200)]
         self.assertEqual(remaining_cost(rows), Decimal("2250"))

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, RefreshCw, Trash2, Search } from "lucide-react";
+import { Pencil, RefreshCw, Trash2, Search, Plus } from "lucide-react";
 import type { PatrimonySummary } from "../../api/dashboard";
 
 type Asset = PatrimonySummary["assets"][number];
@@ -11,10 +11,11 @@ type Props = {
   onRefreshPrice: (asset: Asset) => void | Promise<void>;
   onEdit: (asset: Asset) => void;
   onDelete: (asset: Asset) => void;
+  onPurchase: (asset: Asset) => void;
 };
 const groups: Record<string, string> = { financial: "Bourse", crypto: "Crypto", cash: "Liquidités", patrimony: "Biens physiques", resale: "Achat-revente", brocante: "Brocante" };
 
-export function PatrimonyAssetsTable({ assets, money, latentPnl, showPnl, onRefreshPrice, onEdit, onDelete }: Props) {
+export function PatrimonyAssetsTable({ assets, money, latentPnl, showPnl, onRefreshPrice, onEdit, onDelete, onPurchase }: Props) {
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("all");
   const [busy, setBusy] = useState<number | null>(null);
@@ -40,6 +41,7 @@ export function PatrimonyAssetsTable({ assets, money, latentPnl, showPnl, onRefr
           </dl>}
           <small className="portfolio-updated">{asset.valuation_date ? `Valeur au ${new Date(asset.valuation_date + "T12:00:00").toLocaleDateString("fr-FR")}` : asset.asset_id == null ? "Valeur issue du stock" : "Date de valorisation non renseignée"}</small>
           {asset.asset_id !== null && <footer>
+            {market && <button type="button" className="portfolio-buy" aria-label={`Acheter ${asset.name}`} onClick={() => onPurchase(asset)}><Plus size={15} /> Acheter</button>}
             {market && <button type="button" disabled={busy !== null} onClick={async () => { setBusy(asset.asset_id); try { await onRefreshPrice(asset); } finally { setBusy(null); } }}><RefreshCw size={14} className={busy === asset.asset_id ? "is-spinning" : ""} /> Actualiser</button>}
             <button type="button" onClick={() => onEdit(asset)}><Pencil size={14} /> Modifier</button>
             <button type="button" aria-label={`Supprimer ${asset.name}`} onClick={() => onDelete(asset)}><Trash2 size={14} /></button>

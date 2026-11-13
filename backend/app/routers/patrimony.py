@@ -14,6 +14,7 @@ from app.schemas.patrimony import (
     CreatedAsset,
     LedgerCsvEstimate,
     MarketAssetCreate,
+    MarketPurchaseCreate,
     PhysicalAssetCreate,
     WalletBtcEstimate,
 )
@@ -257,6 +258,29 @@ def create_cash_asset(payload: CashAssetCreate, db: Session = Depends(get_db)):
 
 @router.post("/market-assets", response_model=CreatedAsset, status_code=status.HTTP_201_CREATED)
 def create_market_asset(payload: MarketAssetCreate, db: Session = Depends(get_db)):
+    return record_market_purchase(db, payload)
+
+
+@router.post("/assets/{asset_id}/purchases", response_model=CreatedAsset, status_code=status.HTTP_201_CREATED)
+def add_asset_purchase(asset_id: int, payload: MarketPurchaseCreate, db: Session = Depends(get_db)):
+    asset = db.execute(text("""
+        SELECT a.name_asset, a.ticker, t.code
+        FROM asset a JOIN asset_type t ON t.asset_type_id = a.asset_type_id
+        WHERE a.asset_id = :asset_id AND a.user_id = :user_id AND a.is_active = TRUE
+        FOR UPDATE OF a
+    """), {"asset_id": asset_id, "user_id": get_current_user_id(db)}).mappings().first()
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Actif introuvable.")
+    if asset["code"] not in {"STOCK", "ETF", "CRYPTO"}:
+        raise HTTPException(status_code=400, detail="Les achats sont reserves aux actions, ETF et cryptos.")
+    if not asset["ticker"] and payload.current_unit_price is None:
+        raise HTTPException(status_code=400, detail="Cet actif n'a pas de cours automatique. Renseigne son cours actuel en euros.")
+    market_payload = MarketAssetCreate(**payload.model_dump(), name_asset=asset["name_asset"],
+                                      ticker=asset["ticker"] or "MANUAL", asset_type_code=asset["code"])
+    return record_market_purchase(db, market_payload, asset_id=asset_id)
+
+
+def record_market_purchase(db: Session, payload: MarketAssetCreate, asset_id: int | None = None):
     if payload.asset_type_code not in {"STOCK", "ETF", "CRYPTO"}:
         raise HTTPException(status_code=400, detail="Type supporte: STOCK, ETF ou CRYPTO.")
 
@@ -267,7 +291,8 @@ def create_market_asset(payload: MarketAssetCreate, db: Session = Depends(get_db
         latest_price = fetch_yahoo_price(payload.ticker, expected_currency="EUR")
     if latest_price is None:
         raise HTTPException(status_code=400, detail="Cours EUR indisponible. Renseigne le cours actuel en euros pour enregistrer cet achat.")
-    asset_id = get_or_create_market_asset(db, payload)
+    if asset_id is None:
+        asset_id = get_or_create_market_asset(db, payload)
     total_amount = payload.quantity * payload.buy_unit_price
     db.execute(
         text(

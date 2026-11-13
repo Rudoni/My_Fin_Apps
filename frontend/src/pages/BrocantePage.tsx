@@ -17,6 +17,7 @@ import {
   updateBrocanteItem,
 } from "../api/brocante";
 import { MetricCard } from "../components/MetricCard";
+import { KpiGroup } from "../components/KpiGroup";
 import { MonthlySalesChart } from "../components/MonthlySalesChart";
 import { Modal } from "../components/Modal";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -535,11 +536,14 @@ export function BrocantePage() {
           ) : null}
 
           {mobileSection === "pilotage" ? (
-          <section className="mobile-metric-stack">
+          <>
+          <KpiGroup title="Ton stock" description="Quantités disponibles et potentiel aux prix cibles.">
             <MetricCard label="Références" value={`${summary?.reference_count ?? 0}`} />
             <MetricCard label="Stock restant" value={`${summary?.stock_quantity ?? 0}`} />
             <MetricCard label="Valeur cible stock" value={money(summary?.target_stock_value)} />
             <MetricCard label="P/L latente" value={money(summary?.unrealized_pnl)} hint="Basée sur ton prix de vente cible" />
+          </KpiGroup>
+          <KpiGroup title="Achats & ventes" description="Les montants réellement engagés et encaissés.">
             <MetricCard label="Achats cumulés" value={money(summary?.purchase_total)} />
             <MetricCard label="Ventes cumulées" value={money(summary?.sales_total)} />
             <MetricCard label="P/L réalisée" value={money(summary?.realized_pnl)} />
@@ -547,6 +551,8 @@ export function BrocantePage() {
               label="PRU moyen"
               value={items.length ? money(String(items.reduce((acc, item) => acc + Number(item.average_buy_unit_price || 0), 0) / items.length)) : money("0")}
             />
+          </KpiGroup>
+          <KpiGroup title="Récupération de ta mise" description="Les ventes couvrent ta mise à partir de 100 %.">
             <MetricCard
               label="Seuil de rentabilité"
               value={Number(summary?.break_even_remaining ?? 0) > 0 ? money(summary?.break_even_remaining) : "Atteint"}
@@ -557,14 +563,15 @@ export function BrocantePage() {
               value={percent(summary?.break_even_progress_pct)}
               hint={summary?.break_even_possible_with_target ? "Rentable si le stock part au prix cible" : "Le prix cible actuel ne couvre pas encore la mise"}
             />
-          </section>
+          </KpiGroup>
+          </>
           ) : null}
 
           {mobileSection === "pilotage" ? (
           <section className="panel chart-panel full-width-section">
             <div className="section-title">P/L réalisée par jour · mois en cours</div>
             <p className="section-copy">Vision rapide de la plus-value encaissée sur le mois actuel.</p>
-            <ResponsiveContainer width="100%" height={220}>
+            {currentMonthDailyRealizedChart.length ? <ResponsiveContainer width="100%" height={220}>
               <BarChart data={currentMonthDailyRealizedChart}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="day" />
@@ -573,9 +580,9 @@ export function BrocantePage() {
                   labelFormatter={(_value, payload) => (payload?.[0]?.payload?.fullDate ? String(payload[0].payload.fullDate) : "")}
                   formatter={(value) => money(String(value))}
                 />
-                <Bar dataKey="value" fill="#4f46e5" radius={[8, 8, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="value" fill="#24634e" radius={[8, 8, 0, 0]} isAnimationActive={false} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer> : <p className="studio-empty">Aucune vente datée ce mois-ci.</p>}
           </section>
           ) : null}
 
@@ -739,21 +746,21 @@ export function BrocantePage() {
       ) : (
         <>
           {mobileSection === "pilotage" && <>
-          <section className="metric-grid">
+          <KpiGroup title="Ton stock" description="Quantités disponibles et potentiel aux prix cibles.">
             <MetricCard label="Références" value={`${summary?.reference_count ?? 0}`} />
             <MetricCard label="Stock restant" value={`${summary?.stock_quantity ?? 0}`} />
             <MetricCard label="Valeur cible stock" value={money(summary?.target_stock_value)} />
             <MetricCard label="P/L latente" value={money(summary?.unrealized_pnl)} hint="Basée sur ton prix de vente cible" />
-          </section>
+          </KpiGroup>
 
-          <section className="metric-grid">
+          <KpiGroup title="Achats & ventes" description="Les montants réellement engagés et encaissés.">
             <MetricCard label="Achats cumulés" value={money(summary?.purchase_total)} />
             <MetricCard label="Ventes cumulées" value={money(summary?.sales_total)} />
             <MetricCard label="P/L réalisée" value={money(summary?.realized_pnl)} />
             <MetricCard label="PRU moyen" value={items.length ? money(String(items.reduce((acc, item) => acc + Number(item.average_buy_unit_price || 0), 0) / items.length)) : money("0")} />
-          </section>
+          </KpiGroup>
 
-          <section className="metric-grid">
+          <KpiGroup title="Récupération de ta mise" description="Les ventes couvrent ta mise à partir de 100 %.">
             <MetricCard
               label="Seuil de rentabilité"
               value={Number(summary?.break_even_remaining ?? 0) > 0 ? money(summary?.break_even_remaining) : "Atteint"}
@@ -772,12 +779,12 @@ export function BrocantePage() {
                   : "Même au prix cible actuel, la mise n'est pas encore couverte"
               }
             />
-          </section>
+          </KpiGroup>
 
           <section className="panel chart-panel full-width-section">
             <div className="section-title">P/L réalisée par jour · mois en cours</div>
             <p className="section-copy">Zoom sur la plus-value encaissée jour par jour sur le mois actuel.</p>
-            <ResponsiveContainer width="100%" height={260}>
+            {currentMonthDailyRealizedChart.length ? <ResponsiveContainer width="100%" height={260}>
               <BarChart data={currentMonthDailyRealizedChart}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="day" />
@@ -786,9 +793,9 @@ export function BrocantePage() {
                   labelFormatter={(_value, payload) => (payload?.[0]?.payload?.fullDate ? String(payload[0].payload.fullDate) : "")}
                   formatter={(value) => money(String(value))}
                 />
-                <Bar dataKey="value" fill="#4f46e5" radius={[8, 8, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="value" fill="#24634e" radius={[8, 8, 0, 0]} isAnimationActive={false} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer> : <p className="studio-empty">Aucune vente datée ce mois-ci.</p>}
           </section>
 
           </>}

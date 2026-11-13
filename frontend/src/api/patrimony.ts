@@ -2,6 +2,13 @@ import { apiRequest, getApiBaseUrl, getStoredApiKey } from "./client";
 
 const API_BASE_URL = getApiBaseUrl();
 
+export const addAssetPurchase = (assetId: number, payload: {
+  quantity: string;
+  buy_unit_price: string;
+  current_unit_price: string | null;
+  valuation_date: string;
+}) => apiRequest<{ asset_id: number; name_asset: string }>(`/patrimony/assets/${assetId}/purchases`, { method: "POST", body: JSON.stringify(payload) });
+
 export const createPhysicalAsset = (payload: {
   name_asset: string;
   estimated_value: string;

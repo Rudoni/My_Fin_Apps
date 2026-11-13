@@ -14,6 +14,7 @@ import {
   updateResaleItem,
 } from "../api/resale";
 import { MetricCard } from "../components/MetricCard";
+import { KpiGroup } from "../components/KpiGroup";
 import { MonthlySalesChart } from "../components/MonthlySalesChart";
 import { Modal } from "../components/Modal";
 import { YearFilter } from "../components/YearFilter";
@@ -219,10 +220,6 @@ export function ResalePage() {
   }));
   const categoryMarginRows = [...(summary?.by_category ?? [])].sort((a, b) => Number(b.margin_rate) - Number(a.margin_rate));
 
-  const monthlyBenefitChart = (summary?.benefit_by_month ?? []).map((row) => ({
-    month: row.label,
-    value: chartNumber(row.value),
-  }));
   const currentMonthDailyRealizedChart = (summary?.realized_pnl_by_day_current_month ?? []).map((row) => ({
     day: row.label.slice(8),
     fullDate: row.label,
@@ -325,11 +322,14 @@ export function ResalePage() {
       {mobileSection === "pilotage" && <MonthlySalesChart revenue={summary?.ca_by_month ?? []} profit={summary?.benefit_by_month ?? []} />}
 
       {(mobileSection === "pilotage") ? (
-      <section className="metric-grid">
+      <>
+      <KpiGroup title="Performance de tes ventes" description="Les résultats encaissés et le potentiel du stock restent séparés.">
         <MetricCard label="CA total" value={money(summary?.ca_total)} />
         <MetricCard label="Bénéfice total" value={money(summary?.benefit_total)} />
         <MetricCard label="P/L latente" value={money(summary?.unrealized_pnl)} hint="Prix attendu - prix payé sur le non vendu" />
         <MetricCard label="Stock estimé" value={money(summary?.unsold_value)} hint={`${summary?.unsold_count ?? 0} non vendus`} />
+      </KpiGroup>
+      <KpiGroup title="Récupération de ta mise" description="À 100 % de couverture, les ventes ont remboursé les achats suivis.">
         <MetricCard
           label="Seuil de rentabilité"
           value={Number(summary?.break_even_remaining ?? 0) > 0 ? money(summary?.break_even_remaining) : "Atteint"}
@@ -348,7 +348,8 @@ export function ResalePage() {
               : "Même au prix cible actuel, la mise n'est pas encore couverte"
           }
         />
-      </section>
+      </KpiGroup>
+      </>
       ) : isMobile ? (
         <section className="mobile-summary-strip">
           <MetricCard label="Stock" value={money(summary?.unsold_value)} />
@@ -358,23 +359,10 @@ export function ResalePage() {
       ) : null}
 
       {(mobileSection === "pilotage") ? (
-      <section className="content-grid">
-        <section className="panel chart-panel">
-          <div className="section-title">Bénéfice par mois</div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={monthlyBenefitChart}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => money(String(value))} />
-              <Bar dataKey="value" fill="#17211d" radius={[8, 8, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </section>
-
+      <section>
         <section className="panel chart-panel">
           <div className="section-title">Répartition par catégorie</div>
-          <ResponsiveContainer width="100%" height={280}>
+          {categoryChart.length ? <ResponsiveContainer width="100%" height={280}>
             <BarChart data={categoryChart}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="category" />
@@ -383,7 +371,7 @@ export function ResalePage() {
               <Bar dataKey="CA" fill="#0f766e" radius={[8, 8, 0, 0]} isAnimationActive={false} />
               <Bar dataKey="Stock" fill="#f59e0b" radius={[8, 8, 0, 0]} isAnimationActive={false} />
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer> : <p className="studio-empty">Tes catégories apparaîtront après tes premières opérations.</p>}
         </section>
       </section>
       ) : null}
@@ -392,7 +380,7 @@ export function ResalePage() {
       <section className="panel chart-panel full-width-section">
         <div className="section-title">P/L réalisée par jour · mois en cours</div>
         <p className="section-copy">Lecture jour par jour de la plus-value vraiment encaissée ce mois-ci.</p>
-        <ResponsiveContainer width="100%" height={260}>
+        {currentMonthDailyRealizedChart.length ? <ResponsiveContainer width="100%" height={260}>
           <BarChart data={currentMonthDailyRealizedChart}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="day" />
@@ -403,7 +391,7 @@ export function ResalePage() {
             />
             <Bar dataKey="value" fill="#4f46e5" radius={[8, 8, 0, 0]} isAnimationActive={false} />
           </BarChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer> : <p className="studio-empty">Aucune vente datée ce mois-ci.</p>}
       </section>
       ) : null}
 

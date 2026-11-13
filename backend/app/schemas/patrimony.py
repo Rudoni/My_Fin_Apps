@@ -18,15 +18,18 @@ class CashAssetCreate(BaseModel):
     notes: str | None = None
 
 
-class MarketAssetCreate(BaseModel):
-    name_asset: str = Field(min_length=1)
-    ticker: str = Field(min_length=1)
-    asset_type_code: str = "STOCK"
+class MarketPurchaseCreate(BaseModel):
     quantity: Decimal = Field(gt=0)
     buy_unit_price: Decimal = Field(ge=0)
     current_unit_price: Decimal | None = Field(default=None, gt=0)
     valuation_date: date
     notes: str | None = None
+
+
+class MarketAssetCreate(MarketPurchaseCreate):
+    name_asset: str = Field(min_length=1)
+    ticker: str = Field(min_length=1)
+    asset_type_code: str = "STOCK"
 
 
 class AssetUpdate(BaseModel):

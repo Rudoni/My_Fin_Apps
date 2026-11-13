@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BarChart3, Boxes, Coins, Eye, EyeOff, Home, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, Settings, X } from "lucide-react";
+import { BarChart3, Boxes, Coins, Eye, EyeOff, Home, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, Search, Settings, X, ArrowUpRight } from "lucide-react";
+import { Modal } from "./Modal";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 export type AppPage = "dashboard" | "expenses" | "resale" | "brocante" | "patrimony" | "settings";
@@ -36,6 +37,19 @@ export function AppLayout({
 }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault(); setCommandOpen((open) => !open); setQuery("");
+      }
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
   const visibleNavItems = brocanteFocusMode ? navItems.filter((item) => item.id === "brocante" || item.id === "settings") : navItems;
   const mobilePrimaryNavItems = visibleNavItems.filter((item) => item.id !== "settings").slice(0, 5);
   const appFrameClassName = privacyMode
@@ -48,6 +62,7 @@ export function AppLayout({
 
   return (
     <div className={appFrameClassName}>
+      <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById("main-content")?.focus(); }}>Aller au contenu</a>
       <div className="mobile-topbar">
         <button className="icon-button mobile-topbar-button" type="button" onClick={() => setMobileNavOpen(true)} aria-label="Ouvrir le menu">
           <Menu size={18} />
@@ -103,8 +118,15 @@ export function AppLayout({
             </button>
           ))}
         </nav>
+        <div className="workspace-footer">
+          <button type="button" className="workspace-search" aria-label="Rechercher une page" onClick={() => { setQuery(""); setCommandOpen(true); setMobileNavOpen(false); }}>
+            <Search size={18} /><span className={sidebarCollapsed && !isMobile ? "hidden" : ""}>Accès rapide <kbd>⌘ K</kbd></span>
+          </button>
+          {(!sidebarCollapsed || isMobile) && <p>Un peu de clarté.<br /><strong>Beaucoup de possibilités.</strong></p>}
+        </div>
       </aside>
-      <div className="app-content" key={page}>
+      <div className="app-content" id="main-content" tabIndex={-1} key={page}>
+        <div className="workspace-topline"><span>MON ESPACE <span>/</span> {navItems.find((item) => item.id === page)?.label}</span><button type="button" onClick={() => { setQuery(""); setCommandOpen(true); }}><Search size={15} /> Aller à une page <kbd>⌘ K</kbd></button></div>
         {children}
         {isMobile ? (
           <nav className="mobile-bottom-nav" aria-label="Navigation principale">
@@ -117,6 +139,14 @@ export function AppLayout({
           </nav>
         ) : null}
       </div>
+      {commandOpen && <Modal title="Où veux-tu aller ?" eyebrow="Accès rapide" onClose={() => setCommandOpen(false)}>
+        <div className="command-search"><Search size={20} /><input autoFocus aria-label="Rechercher une page" placeholder="Dépenses, patrimoine, brocante…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+        <div className="command-results">
+          {visibleNavItems.filter((item) => normalize(item.label).includes(normalize(query))).map((item) => <button type="button" key={item.id} onClick={() => { onPageChange(item.id); setCommandOpen(false); setMobileNavOpen(false); }}>{item.icon}<span>{item.label}</span><ArrowUpRight size={18} /></button>)}
+          {!visibleNavItems.some((item) => normalize(item.label).includes(normalize(query))) && <p className="section-copy">Aucune page trouvée. Essaie « dépenses » ou « patrimoine ».</p>}
+        </div>
+        <p className="section-copy">Tab pour parcourir · Entrée pour ouvrir · Échap pour fermer</p>
+      </Modal>}
     </div>
   );
 }

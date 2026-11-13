@@ -15,7 +15,7 @@ const money = (value: string | number | undefined) => currency.format(Number(val
 const month = (label: string) => label.length >= 7 ? `${label.slice(5, 7)}/${label.slice(2, 4)}` : label;
 type View = "overview" | "cashflow" | "wealth";
 
-export function DashboardPage({ onNavigate }: { onNavigate: (page: AppPage) => void }) {
+export function DashboardPage({ onNavigate, displayName }: { onNavigate: (page: AppPage) => void; displayName?: string }) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [years, setYears] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -70,11 +70,14 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: AppPage) => v
   const netAverage = monthly.length ? monthly.reduce((sum, r) => sum + r.Net, 0) / monthly.length : 0;
   const period = selectedYears.length ? selectedYears.join(", ") : "Tout l’historique";
   const tooltip = <Tooltip formatter={(v) => money(String(v))} labelFormatter={(v) => month(String(v))} />;
+  const latestMonth = monthly.at(-1);
+  const latestLabel = latestMonth ? new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(new Date(Number(latestMonth.label.slice(0, 4)), Number(latestMonth.label.slice(5, 7)) - 1, 1)) : "";
+  const [wealthRange, setWealthRange] = useState<"12" | "all">("12");
 
   return (
     <main className="page-shell studio-dashboard">
       <header className="hero">
-        <div><p className="eyebrow">Ton espace financier</p><h1>Une vue d’avance.</h1><p>Ton argent, tes projets, les bonnes décisions.</p></div>
+        <div><p className="eyebrow">Bonjour{displayName?.trim() ? `, ${displayName.trim()}` : ""}</p><h1>Une vue d’avance<span className="headline-dot">.</span></h1><p>Moins de chiffres à chercher. Plus de place pour tes projets.</p></div>
         <div className="hero-actions">
           <YearFilter years={years} selectedYears={selectedYears} onChange={setSelectedYears} />
           <button className="icon-button" type="button" aria-label="Actualiser le dashboard" disabled={loading} onClick={() => setRevision((v) => v + 1)}><RefreshCw size={18} className={loading ? "is-spinning" : ""} /></button>
@@ -95,6 +98,9 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: AppPage) => v
                 <div className="studio-card-top"><span><Wallet size={18} /> Patrimoine suivi</span><span className="studio-chip">Valeur actuelle</span></div>
                 <strong className="studio-wealth-number sensitive-value">{money(value)}</strong>
                 <p>Actifs, brocante et stock achat-revente réunis.</p>
+                <div className="wealth-mini-chart sensitive-chart" aria-hidden="true">
+                  <ResponsiveContainer width="100%" height={62}><AreaChart data={timeline.slice(-12)}><Area type="monotone" dataKey="Patrimoine" stroke="#d7edaa" strokeWidth={2} fill="#d7edaa" fillOpacity={0.08} isAnimationActive={false} /></AreaChart></ResponsiveContainer>
+                </div>
                 <div className="studio-wealth-footer"><span>Plus-value latente <b className="sensitive-value">{money(data.patrimony.unrealized_pnl)}</b></span><button type="button" onClick={() => setView("wealth")} aria-label="Explorer le patrimoine"><ArrowUpRight size={24} /></button></div>
               </article>
               <article className="panel studio-compass">
@@ -105,6 +111,13 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: AppPage) => v
                 <button className="ghost-button" type="button" onClick={() => setView("cashflow")}>Comprendre mes flux <ArrowUpRight size={16} /></button>
               </article>
             </section>
+            {latestMonth && <section className="month-pulse" aria-label="Dernier mois renseigné">
+              <div className="month-pulse-title"><span className="eyebrow">Le dernier point</span><h2>{latestLabel}</h2><small>Dernier mois renseigné · peut être incomplet</small></div>
+              <div><span>Revenus</span><strong className="sensitive-value">{money(latestMonth.Revenus)}</strong></div>
+              <div><span>Dépenses de vie</span><strong className="sensitive-value">{money(-latestMonth.Dépenses)}</strong></div>
+              <div><span>Avant investissement</span><strong className={`sensitive-value ${latestMonth.Disponible >= 0 ? "positive" : "negative"}`}>{money(latestMonth.Disponible)}</strong></div>
+              <button type="button" className="icon-button" aria-label="Analyser les flux du dernier mois" onClick={() => setView("cashflow")}><ArrowUpRight size={20} /></button>
+            </section>}
             <section className="studio-quick-actions" aria-label="Actions rapides">
               <button type="button" onClick={() => onNavigate("expenses")}><span className="studio-action-icon"><Plus size={20} /></span><span><strong>Ajouter une dépense</strong><small>Garder le fil du quotidien</small></span><ArrowUpRight size={18} /></button>
               <button type="button" onClick={() => onNavigate("brocante")}><span className="studio-action-icon"><Boxes size={20} /></span><span><strong>Gérer ma brocante</strong><small>Stock, binder et ventes</small></span><ArrowUpRight size={18} /></button>
@@ -121,8 +134,8 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: AppPage) => v
 
           {(view === "overview" || view === "wealth") && <section className="studio-chart-grid">
             <article className="panel chart-panel">
-              <div className="studio-panel-heading"><div><p className="eyebrow">La trajectoire</p><h2>Ton patrimoine dans le temps</h2></div><span className="studio-chip">Historique disponible</span></div>
-              {timeline.length ? <div className="sensitive-chart"><ResponsiveContainer width="100%" height={300}><AreaChart data={timeline} margin={{ left: 0, right: 12, top: 18 }}>
+              <div className="studio-panel-heading"><div><p className="eyebrow">La trajectoire</p><h2>Ton patrimoine dans le temps</h2></div><div className="studio-tabs"><button type="button" className={wealthRange === "12" ? "active" : ""} aria-pressed={wealthRange === "12"} onClick={() => setWealthRange("12")}>12 points</button><button type="button" className={wealthRange === "all" ? "active" : ""} aria-pressed={wealthRange === "all"} onClick={() => setWealthRange("all")}>Tout</button></div></div>
+              {timeline.length ? <div className="sensitive-chart"><ResponsiveContainer width="100%" height={300}><AreaChart data={wealthRange === "12" ? timeline.slice(-12) : timeline} margin={{ left: 0, right: 12, top: 18 }}>
                 <defs><linearGradient id="wealth-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4e987d" stopOpacity={0.3} /><stop offset="100%" stopColor="#4e987d" stopOpacity={0.01} /></linearGradient></defs>
                 <CartesianGrid vertical={false} stroke="#e8ece5" /><XAxis dataKey="label" tickFormatter={month} minTickGap={36} axisLine={false} tickLine={false} /><YAxis width={48} tickFormatter={(v) => compact.format(Number(v))} axisLine={false} tickLine={false} />
                 {tooltip}<Area dataKey="Patrimoine" type="monotone" stroke="#1e6353" strokeWidth={3} fill="url(#wealth-fill)" isAnimationActive={false} />

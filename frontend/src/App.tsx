@@ -16,7 +16,22 @@ export function App() {
   const [authResolved, setAuthResolved] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [page, setPage] = useState<AppPage>("dashboard");
+  const readPage = (): AppPage => {
+    const value = window.location.hash.slice(1);
+    return (["dashboard", "expenses", "resale", "brocante", "patrimony", "settings"] as string[]).includes(value) ? value as AppPage : "dashboard";
+  };
+  const [page, setPage] = useState<AppPage>(readPage);
+  function navigate(next: AppPage) {
+    if (page === next) return;
+    window.location.hash = next;
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  useEffect(() => {
+    const sync = () => { setPage(readPage()); window.scrollTo({ top: 0, behavior: "instant" }); };
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
   const [brocanteFocusMode, setBrocanteFocusMode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -66,7 +81,7 @@ export function App() {
   function renderCurrentPage() {
     switch (page) {
       case "dashboard":
-        return <DashboardPage onNavigate={setPage} />;
+        return <DashboardPage onNavigate={navigate} displayName={currentUser?.display_name} />;
       case "expenses":
         return <ExpensesPage />;
       case "resale":
@@ -92,7 +107,7 @@ export function App() {
           />
         );
       default:
-        return <DashboardPage onNavigate={setPage} />;
+        return <DashboardPage onNavigate={navigate} displayName={currentUser?.display_name} />;
     }
   }
 
@@ -110,7 +125,7 @@ export function App() {
   return (
     <AppLayout
       page={page}
-      onPageChange={setPage}
+      onPageChange={navigate}
       brocanteFocusMode={brocanteFocusMode}
       privacyMode={privacyMode}
       sidebarCollapsed={sidebarCollapsed}

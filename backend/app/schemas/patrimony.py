@@ -24,6 +24,7 @@ class MarketAssetCreate(BaseModel):
     asset_type_code: str = "STOCK"
     quantity: Decimal = Field(gt=0)
     buy_unit_price: Decimal = Field(ge=0)
+    current_unit_price: Decimal | None = Field(default=None, gt=0)
     valuation_date: date
     notes: str | None = None
 

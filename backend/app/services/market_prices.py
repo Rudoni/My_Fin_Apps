@@ -5,7 +5,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-def fetch_yahoo_price(symbol: str) -> Decimal | None:
+def fetch_yahoo_price(symbol: str, expected_currency: str | None = None) -> Decimal | None:
     clean_symbol = symbol.strip().upper()
     if not clean_symbol:
         return None
@@ -23,6 +23,8 @@ def fetch_yahoo_price(symbol: str) -> Decimal | None:
         return None
 
     meta = result[0].get("meta", {})
+    if expected_currency and meta.get("currency") != expected_currency:
+        return None
     price = meta.get("regularMarketPrice") or meta.get("previousClose")
     if price is None:
         return None

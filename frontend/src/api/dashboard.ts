@@ -53,6 +53,10 @@ export type PatrimonySummary = {
     group: string;
     value: string;
     invested_net: string;
+    quantity?: string | null;
+    cost_basis?: string | null;
+    unrealized_pnl?: string | null;
+    valuation_date?: string | null;
     reference_date: string | null;
     notes: string | null;
   }>;

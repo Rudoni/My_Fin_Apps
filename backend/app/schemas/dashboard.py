@@ -38,6 +38,10 @@ class PatrimonyAsset(BaseModel):
     group: str
     value: Decimal
     invested_net: Decimal
+    quantity: Decimal | None = None
+    cost_basis: Decimal | None = None
+    unrealized_pnl: Decimal | None = None
+    valuation_date: date | None = None
     reference_date: date | None = None
     notes: str | None = None
 

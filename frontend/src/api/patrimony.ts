@@ -22,6 +22,7 @@ export const createMarketAsset = (payload: {
   asset_type_code: string;
   quantity: string;
   buy_unit_price: string;
+  current_unit_price?: string | null;
   valuation_date: string;
   notes?: string | null;
 }) => apiRequest<{ asset_id: number; name_asset: string }>("/patrimony/market-assets", { method: "POST", body: JSON.stringify(payload) });

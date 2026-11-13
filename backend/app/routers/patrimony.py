@@ -260,6 +260,13 @@ def create_market_asset(payload: MarketAssetCreate, db: Session = Depends(get_db
     if payload.asset_type_code not in {"STOCK", "ETF", "CRYPTO"}:
         raise HTTPException(status_code=400, detail="Type supporte: STOCK, ETF ou CRYPTO.")
 
+    if payload.valuation_date > date.today():
+        raise HTTPException(status_code=400, detail="La date d'achat ne peut pas etre dans le futur.")
+    latest_price = payload.current_unit_price
+    if latest_price is None:
+        latest_price = fetch_yahoo_price(payload.ticker, expected_currency="EUR")
+    if latest_price is None:
+        raise HTTPException(status_code=400, detail="Cours EUR indisponible. Renseigne le cours actuel en euros pour enregistrer cet achat.")
     asset_id = get_or_create_market_asset(db, payload)
     total_amount = payload.quantity * payload.buy_unit_price
     db.execute(
@@ -279,8 +286,15 @@ def create_market_asset(payload: MarketAssetCreate, db: Session = Depends(get_db
         },
     )
 
-    latest_price = fetch_yahoo_price(payload.ticker) or payload.buy_unit_price
-    upsert_market_valuation(db, asset_id, payload.valuation_date, payload.quantity, latest_price, "yahoo")
+    quantity_held = db.execute(text("""
+        SELECT COALESCE(SUM(CASE
+            WHEN transaction_type IN ('BUY', 'DEPOSIT') THEN quantity
+            WHEN transaction_type IN ('SELL', 'WITHDRAWAL') THEN -quantity
+            ELSE 0 END), 0)
+        FROM asset_transaction WHERE asset_id = :asset_id
+    """), {"asset_id": asset_id}).scalar_one()
+    upsert_market_valuation(db, asset_id, date.today(), quantity_held, latest_price,
+                            "manual" if payload.current_unit_price is not None else "yahoo")
     db.commit()
     return CreatedAsset(asset_id=asset_id, name_asset=payload.name_asset)
 
@@ -439,7 +453,7 @@ def refresh_asset_price(asset_id: int, db: Session = Depends(get_db)):
     if not asset["ticker"]:
         raise HTTPException(status_code=400, detail="Cet actif n'a pas de ticker.")
 
-    latest_price = fetch_yahoo_price(asset["ticker"])
+    latest_price = fetch_yahoo_price(asset["ticker"], expected_currency="EUR")
     if latest_price is None:
         raise HTTPException(status_code=502, detail="Prix de marche indisponible pour ce ticker.")
 

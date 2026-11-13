@@ -8,9 +8,8 @@ export function MetricCard({ label, value, hint }: MetricCardProps) {
   return (
     <section className="metric-card">
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong className="sensitive-value">{value}</strong>
       {hint ? <small>{hint}</small> : null}
     </section>
   );
 }
-

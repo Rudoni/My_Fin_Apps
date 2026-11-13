@@ -7,6 +7,7 @@ type MarketFormState = {
   asset_type_code: string;
   quantity: string;
   buy_unit_price: string;
+  current_unit_price: string;
   valuation_date: string;
   notes: string;
 };
@@ -26,6 +27,7 @@ type PhysicalFormState = {
 };
 
 type PatrimonyFormsProps = {
+  saving: boolean;
   marketForm: MarketFormState;
   cashForm: CashFormState;
   physicalForm: PhysicalFormState;
@@ -38,6 +40,7 @@ type PatrimonyFormsProps = {
 };
 
 export function PatrimonyForms({
+  saving,
   marketForm,
   cashForm,
   physicalForm,
@@ -67,6 +70,7 @@ export function PatrimonyForms({
 
       {activeForm === "market" ? (
         <form className="patrimony-form-body" onSubmit={onSubmitMarket}>
+          <p className="section-copy">Première saisie : quantité détenue et PRU, frais inclus. Si cet actif existe déjà, cet ajout est un achat supplémentaire : saisis uniquement le nouveau lot.</p>
           <div className="form-row">
             <label>
               Type
@@ -91,7 +95,7 @@ export function PatrimonyForms({
               <input type="number" step="0.00000001" value={marketForm.quantity} onChange={(event) => onMarketChange({ ...marketForm, quantity: event.target.value })} />
             </label>
             <label>
-              Prix d'achat unitaire
+              PRU / prix d'achat unitaire (€), frais inclus
               <input type="number" step="0.00000001" value={marketForm.buy_unit_price} onChange={(event) => onMarketChange({ ...marketForm, buy_unit_price: event.target.value })} />
             </label>
           </div>
@@ -99,7 +103,11 @@ export function PatrimonyForms({
             Date achat
             <input type="date" value={marketForm.valuation_date} onChange={(event) => onMarketChange({ ...marketForm, valuation_date: event.target.value })} />
           </label>
-          <button className="primary-button">Ajouter avec prix actuel</button>
+          <label>Cours actuel unitaire (€)
+            <input min="0.00000001" type="number" step="0.00000001" value={marketForm.current_unit_price} onChange={(event) => onMarketChange({ ...marketForm, current_unit_price: event.target.value })} placeholder="Facultatif : sinon cours EUR automatique" />
+          </label>
+          <div className="portfolio-preview"><span>Coût du lot saisi</span><strong className="sensitive-value">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(marketForm.quantity || 0) * Number(marketForm.buy_unit_price || 0))}</strong><small>Gain latent = valeur actuelle − coût des titres encore détenus. Hors dividendes.</small></div>
+          <button disabled={saving} className="primary-button">{saving ? "Enregistrement…" : "Enregistrer cet achat"}</button>
         </form>
       ) : null}
 

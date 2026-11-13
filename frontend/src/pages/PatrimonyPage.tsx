@@ -13,6 +13,7 @@ import {
   updateAsset,
 } from "../api/patrimony";
 import { MetricCard } from "../components/MetricCard";
+import { PageLoader } from "../components/PageLoader";
 import { Modal } from "../components/Modal";
 import { PatrimonyAssetsTable } from "./patrimony/PatrimonyAssetsTable";
 import { PatrimonyForms } from "./patrimony/PatrimonyForms";
@@ -44,11 +45,11 @@ function cryptoAmount(value: string | null | undefined, ticker: string) {
 }
 
 function latentPnl(asset: PatrimonyAsset) {
-  return Number(asset.value ?? 0) - Number(asset.invested_net ?? 0);
+  return Number(asset.unrealized_pnl ?? 0);
 }
 
 function showPnl(asset: PatrimonyAsset) {
-  return ["financial", "crypto"].includes(asset.group) && Number(asset.invested_net ?? 0) > 0;
+  return ["financial", "crypto"].includes(asset.group) && asset.unrealized_pnl != null;
 }
 
 export function PatrimonyPage() {
@@ -61,6 +62,7 @@ export function PatrimonyPage() {
     asset_type_code: "STOCK",
     quantity: "",
     buy_unit_price: "",
+    current_unit_price: "",
     valuation_date: today,
     notes: "",
   });
@@ -75,6 +77,7 @@ export function PatrimonyPage() {
   const [patrimonyChartMode, setPatrimonyChartMode] = useState<"pie" | "mosaic">("pie");
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<"assets" | "capture" | "pilotage">("assets");
+  const [saving, setSaving] = useState(false);
 
   async function load() {
     try {
@@ -112,18 +115,23 @@ export function PatrimonyPage() {
 
   async function submitMarket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
+    setSaving(true);
     setError(null);
     try {
       await createMarketAsset({
         ...marketForm,
         quantity: marketForm.quantity || "0",
         buy_unit_price: marketForm.buy_unit_price || "0",
+        current_unit_price: marketForm.current_unit_price || null,
         notes: marketForm.notes || null,
       });
-      setMarketForm({ name_asset: "", ticker: "", asset_type_code: "STOCK", quantity: "", buy_unit_price: "", valuation_date: today, notes: "" });
+      setMarketForm({ name_asset: "", ticker: "", asset_type_code: "STOCK", quantity: "", buy_unit_price: "", current_unit_price: "", valuation_date: today, notes: "" });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'ajouter cet actif de marche.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -211,13 +219,16 @@ export function PatrimonyPage() {
     }))
     .sort((a, b) => b.value - a.value);
 
+  if (!data && !error) return <PageLoader />;
+  if (!data) return <main className="page-shell"><div role="alert" className="error-box">{error}</div><button type="button" onClick={() => { setError(null); void load(); }}>Réessayer</button></main>;
+
   return (
-    <main className="page-shell">
+    <main className="page-shell portfolio-page">
       <header className="hero compact-hero">
         <div>
           <p className="eyebrow">Patrimoine</p>
-          <h1>Actifs</h1>
-          <p>Cash, actions, ETF, crypto, actifs physiques et stock estimé réunis dans la même lecture patrimoine.</p>
+          <h1>Ce que tu construis.</h1>
+          <p>Tes placements, tes réserves et tes biens. Une lecture claire, sans mélanger valeur et bénéfice.</p>
         </div>
       </header>
 
@@ -230,15 +241,16 @@ export function PatrimonyPage() {
         </div>
       </nav>
 
-      <section className="metric-grid">
+      {section !== "capture" && <section className="metric-grid portfolio-summary">
         <MetricCard label="Valeur totale" value={money(data?.total_value)} />
-        <MetricCard label="Capital investi" value={money(data?.total_invested)} />
-        <MetricCard label="P/L latent" value={money(data?.unrealized_pnl)} />
+        <MetricCard label="Apports nets suivis" value={money(data?.total_invested)} hint="Achats moins ventes, et coût du stock brocante" />
+        <MetricCard label="Gain latent estimé" value={money(data?.unrealized_pnl)} hint="Positions au coût connu et stock brocante" />
         <MetricCard label="Actifs suivis" value={`${data?.assets.length ?? 0}`} />
-      </section>
+      </section>}
 
       {section === "capture" && <>
       <PatrimonyForms
+        saving={saving}
         marketForm={marketForm}
         cashForm={cashForm}
         physicalForm={physicalForm}

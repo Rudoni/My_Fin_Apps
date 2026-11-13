@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.current_user import get_current_user_id
 from app.schemas.common import NameMetric, TimeMetric
+from app.services.position_cost import remaining_cost
 
 
 def money(value) -> Decimal:
@@ -80,6 +81,14 @@ def get_patrimony_summary(
         {"user_id": user_id},
     ).mappings().all()
 
+    transactions = defaultdict(list)
+    for movement in db.execute(text("""
+        SELECT tr.* FROM asset_transaction tr JOIN asset a ON a.asset_id = tr.asset_id
+        WHERE a.user_id = :user_id
+        ORDER BY tr.transaction_date, tr.transaction_id
+    """), {"user_id": user_id}).mappings().all():
+        transactions[movement["asset_id"]].append(movement)
+
     total_value = Decimal("0")
     total_invested = Decimal("0")
     unrealized_pnl = Decimal("0")
@@ -91,12 +100,16 @@ def get_patrimony_summary(
         unit_price = money(row["unit_price"])
         explicit_value = money(row["total_value"])
         market_value = explicit_value if explicit_value > 0 else quantity * unit_price
+        if row["category_group"] in {"financial", "crypto"} and unit_price > 0:
+            market_value = quantity * unit_price
         invested_net = money(row["total_cost"]) - money(row["total_proceeds"])
+        cost_basis = remaining_cost(transactions[row["asset_id"]]) if transactions[row["asset_id"]] else None
+        position_pnl = market_value - cost_basis if cost_basis is not None and row["category_group"] in {"financial", "crypto"} else None
 
         total_value += market_value
         total_invested += invested_net
-        if row["category_group"] in {"financial", "crypto"} and invested_net > 0:
-            unrealized_pnl += market_value - invested_net
+        if position_pnl is not None:
+            unrealized_pnl += position_pnl
         by_group[row["category_group"]] += market_value
         rows.append(
             {
@@ -106,7 +119,11 @@ def get_patrimony_summary(
                 "group": row["category_group"],
                 "value": market_value,
                 "invested_net": invested_net,
-                "reference_date": row["manual_valuation_date"] or row["first_transaction_date"] or row["latest_valuation_date"],
+                "quantity": quantity,
+                "cost_basis": cost_basis,
+                "unrealized_pnl": position_pnl,
+                "valuation_date": row["latest_valuation_date"],
+                "reference_date": row["first_transaction_date"] or row["manual_valuation_date"] or row["latest_valuation_date"],
                 "notes": row["notes"],
             }
         )

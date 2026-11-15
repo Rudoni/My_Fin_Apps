@@ -374,7 +374,7 @@ def list_expenses(years: list[int] | None = Query(default=None), db: Session = D
             JOIN subcategory s ON s.subcategory_id = e.subcategory_id
             JOIN category c ON c.category_id = s.category_id
             JOIN payment_method pm ON pm.id = e.payment_method_id
-            {years_clause('e.expense_date', years)}
+            {years_clause('e.expense_date', years, user_column='e.user_id')}
             ORDER BY e.expense_date DESC, e.expense_id DESC
             """
         ),

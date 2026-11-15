@@ -16,10 +16,10 @@ def money(value) -> Decimal:
     return Decimal(value)
 
 
-def years_clause(column_name: str, years: list[int] | None) -> str:
+def years_clause(column_name: str, years: list[int] | None, *, user_column: str = "user_id") -> str:
     if not years:
-        return f" WHERE user_id = :user_id"
-    return f" WHERE user_id = :user_id AND EXTRACT(YEAR FROM {column_name})::int = ANY(:years)"
+        return f" WHERE {user_column} = :user_id"
+    return f" WHERE {user_column} = :user_id AND EXTRACT(YEAR FROM {column_name})::int = ANY(:years)"
 
 
 def has_budget_allocation_table(db: Session) -> bool:
@@ -98,7 +98,7 @@ def get_budget_summary(db: Session, years: list[int] | None = None) -> dict:
             FROM expenses e
             JOIN subcategory s ON e.subcategory_id = s.subcategory_id
             JOIN category c ON s.category_id = c.category_id
-            {years_clause('e.expense_date', years)}
+            {years_clause('e.expense_date', years, user_column='e.user_id')}
             """
         ),
         {**params, "user_id": user_id},

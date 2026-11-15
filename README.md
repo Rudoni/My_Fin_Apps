@@ -10,7 +10,7 @@ App perso de pilotage financier avec :
 
 La stack principale est maintenant :
 
-- `frontend/` : React + Vite
+- `frontend/` : React Vite
 - `backend/` : FastAPI
 - `PostgreSQL` : base unique partagée
 - `Alembic` : migrations versionnées

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS subcategory (
     name_subcat VARCHAR(120) NOT NULL,
     category_id INTEGER NOT NULL REFERENCES category(category_id) ON DELETE CASCADE,
     CONSTRAINT uq_subcategory_name_per_category UNIQUE (name_subcat, category_id)
-);
+); 
 
 CREATE TABLE IF NOT EXISTS payment_method (
     id SERIAL PRIMARY KEY,

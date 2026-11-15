@@ -34,6 +34,16 @@ CREATE TABLE IF NOT EXISTS payment_method (
     name_payment VARCHAR(100) NOT NULL UNIQUE
 );
 
+ALTER TABLE subcategory ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES app_user(user_id);
+ALTER TABLE subcategory DROP CONSTRAINT IF EXISTS uq_subcategory_name_per_category;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_subcategory_shared ON subcategory (name_subcat, category_id) WHERE user_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_subcategory_personal ON subcategory (user_id, LOWER(name_subcat), category_id) WHERE user_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS hidden_expense_category (
+    user_id INTEGER NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+    subcategory_id INTEGER NOT NULL REFERENCES subcategory(subcategory_id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, subcategory_id)
+);
+
 CREATE TABLE IF NOT EXISTS expenses (
     expense_id SERIAL PRIMARY KEY,
     description_expense TEXT NOT NULL,
@@ -440,6 +450,7 @@ WHERE NOT EXISTS (
     FROM subcategory s
     WHERE s.name_subcat = v.name_subcat
       AND s.category_id = c.category_id
+      AND s.user_id IS NULL
 );
 
 INSERT INTO asset_type (code, label, category_group, is_market_quoted, track_latest_price)

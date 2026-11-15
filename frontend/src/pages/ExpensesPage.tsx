@@ -23,6 +23,7 @@ import {
   updateIncome,
 } from "../api/budget";
 import { MetricCard } from "../components/MetricCard";
+import { ExpenseCategories } from "./expenses/ExpenseCategories";
 import { KpiGroup } from "../components/KpiGroup";
 import { CategoryBreakdown } from "../components/CategoryBreakdown";
 import { Modal } from "../components/Modal";
@@ -147,7 +148,7 @@ export function ExpensesPage() {
   const [incomePageSize, setIncomePageSize] = useState(20);
   const [allocationPage, setAllocationPage] = useState(1);
   const [allocationPageSize, setAllocationPageSize] = useState(20);
-  const [mobileSection, setMobileSection] = useState<"capture" | "history" | "pilotage" | "recurring">("capture");
+  const [mobileSection, setMobileSection] = useState<"capture" | "history" | "pilotage" | "recurring" | "categories">("capture");
 
   async function loadContent(years = selectedYears) {
     setLoadError(null);
@@ -179,7 +180,7 @@ export function ExpensesPage() {
     setPaymentMethods(payments);
     setExpenseForm((form) => ({
       ...form,
-      subcategory_id: form.subcategory_id || subcats[0]?.id || 0,
+      subcategory_id: subcats.some(item => item.id === form.subcategory_id) ? form.subcategory_id : subcats[0]?.id || 0,
       payment_method_id: form.payment_method_id || payments[0]?.id || 0,
     }));
   }
@@ -400,16 +401,18 @@ export function ExpensesPage() {
               Pilotage
             </button>
             <button className={mobileSection === "recurring" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("recurring")}>Récurrentes</button>
+            <button className={mobileSection === "categories" ? "primary-button" : "ghost-button"} type="button" onClick={() => setMobileSection("categories")}>Catégories</button>
           </div>
         </section>
       )}
 
       {loadError && <div className="error-box" role="alert">{loadError}</div>}
-      <KpiGroup title="Ton quotidien" description="Le total se décompose en dépenses récurrentes et courantes, sur la période sélectionnée.">
+      {mobileSection === "categories" && <ExpenseCategories onChanged={loadReferenceData} />}
+      {mobileSection !== "categories" && <KpiGroup title="Ton quotidien" description="Le total se décompose en dépenses récurrentes et courantes, sur la période sélectionnée.">
         <MetricCard label="Dépenses totales" value={money(summary?.expense_total)} hint="Période sélectionnée" />
         <MetricCard label="Récurrentes" value={money(summary?.recurring_expense_total)} hint="Loyer, abonnements…" />
         <MetricCard label="Courantes" value={money(summary?.regular_expense_total)} hint="Restaurants, essence…" />
-      </KpiGroup>
+      </KpiGroup>}
       {mobileSection === "recurring" && <RecurringExpenses subcategories={subcategories} paymentMethods={paymentMethods} onChanged={async () => { await Promise.all([loadContent(), refreshAvailableYears()]); }} />}
 
       {(mobileSection === "pilotage") ? (

@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from pydantic import BaseModel, Field, field_validator
+from app.services.expense_categories import validate_category
 
 from app.core.current_user import get_current_user_id
 from app.core.db import get_db
@@ -24,6 +27,77 @@ from app.services.budget import has_budget_allocation_table, list_budget_years, 
 router = APIRouter(tags=["budget"])
 
 
+class ExpenseCategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    category_id: int = Field(gt=0)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+@router.get("/budget/categories/groups", response_model=list[OptionItem])
+def category_groups(db: Session = Depends(get_db)):
+    return db.execute(text("SELECT category_id AS id, name_cat AS name FROM category ORDER BY name_cat")).mappings().all()
+
+
+@router.get("/budget/categories")
+def expense_categories(db: Session = Depends(get_db)):
+    return db.execute(text("""
+        SELECT s.subcategory_id AS id, s.name_subcat AS name, c.name_cat AS group_name,
+               s.user_id IS NULL AS shared, h.subcategory_id IS NOT NULL AS hidden
+        FROM subcategory s JOIN category c ON c.category_id = s.category_id
+        LEFT JOIN hidden_expense_category h ON h.subcategory_id = s.subcategory_id AND h.user_id = :user_id
+        WHERE s.user_id IS NULL OR s.user_id = :user_id
+        ORDER BY c.name_cat, s.name_subcat
+    """), {"user_id": get_current_user_id(db)}).mappings().all()
+
+
+@router.post("/budget/categories", status_code=201)
+def create_expense_category(payload: ExpenseCategoryCreate, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(db)
+    if not db.execute(text("SELECT 1 FROM category WHERE category_id = :id"), {"id": payload.category_id}).scalar():
+        raise HTTPException(status_code=422, detail="Groupe invalide.")
+    existing = db.execute(text("""
+        SELECT subcategory_id FROM subcategory
+        WHERE (user_id IS NULL OR user_id = :user_id) AND category_id = :category_id
+          AND LOWER(name_subcat) = LOWER(:name)
+    """), {**payload.model_dump(), "user_id": user_id}).scalar()
+    if existing:
+        raise HTTPException(status_code=409, detail="Cette catégorie existe déjà. Tu peux la restaurer si elle est masquée.")
+    try:
+        result = db.execute(text("""
+            INSERT INTO subcategory (name_subcat, category_id, user_id) VALUES (:name, :category_id, :user_id)
+            RETURNING subcategory_id AS id, name_subcat AS name
+        """), {**payload.model_dump(), "user_id": user_id}).mappings().one()
+        db.commit()
+        return result
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Cette catégorie existe déjà.") from exc
+
+
+@router.delete("/budget/categories/{category_id}", status_code=204)
+def hide_expense_category(category_id: int, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(db)
+    validate_category(db, user_id, category_id, allow_hidden=True)
+    if db.execute(text("SELECT 1 FROM recurring_expense WHERE user_id = :user_id AND subcategory_id = :id AND is_active = TRUE LIMIT 1"), {"user_id": user_id, "id": category_id}).scalar():
+        raise HTTPException(status_code=409, detail="Mets d'abord en pause les dépenses récurrentes utilisant cette catégorie.")
+    db.execute(text("INSERT INTO hidden_expense_category (user_id, subcategory_id) VALUES (:user_id, :id) ON CONFLICT DO NOTHING"), {"user_id": user_id, "id": category_id})
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/budget/categories/{category_id}/restore", status_code=204)
+def restore_expense_category(category_id: int, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(db)
+    validate_category(db, user_id, category_id, allow_hidden=True)
+    db.execute(text("DELETE FROM hidden_expense_category WHERE user_id = :user_id AND subcategory_id = :id"), {"user_id": user_id, "id": category_id})
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.get("/budget/recurring", response_model=list[RecurringExpenseRead])
 def list_recurring(db: Session = Depends(get_db)):
     user_id = get_current_user_id(db)
@@ -34,6 +108,7 @@ def list_recurring(db: Session = Depends(get_db)):
 @router.post("/budget/recurring", response_model=RecurringExpenseRead, status_code=201)
 def create_recurring(payload: RecurringExpenseCreate, db: Session = Depends(get_db)):
     user_id = get_current_user_id(db)
+    validate_category(db, user_id, payload.subcategory_id)
     for table, column, value in [("subcategory", "subcategory_id", payload.subcategory_id), ("payment_method", "id", payload.payment_method_id)]:
         if not db.execute(text(f"SELECT 1 FROM {table} WHERE {column} = :id"), {"id": value}).scalar():
             raise HTTPException(status_code=422, detail="Catégorie ou moyen de paiement invalide.")
@@ -49,6 +124,11 @@ def create_recurring(payload: RecurringExpenseCreate, db: Session = Depends(get_
 @router.patch("/budget/recurring/{rule_id}", response_model=RecurringExpenseRead)
 def toggle_recurring(rule_id: int, payload: RecurringExpenseUpdate, db: Session = Depends(get_db)):
     user_id = get_current_user_id(db)
+    if payload.is_active:
+        category_id = db.execute(text("SELECT subcategory_id FROM recurring_expense WHERE recurring_expense_id = :id AND user_id = :user_id"), {"id": rule_id, "user_id": user_id}).scalar()
+        if category_id is None:
+            raise HTTPException(status_code=404, detail="Dépense récurrente introuvable.")
+        validate_category(db, user_id, category_id)
     materialize(db, user_id)
     row = db.execute(text("""
         UPDATE recurring_expense SET is_active = :is_active,
@@ -90,7 +170,10 @@ def get_expense_row(db: Session, expense_id: int):
 
 @router.get("/budget/options/subcategories", response_model=list[OptionItem])
 def list_subcategories(db: Session = Depends(get_db)):
-    rows = db.execute(text("SELECT subcategory_id AS id, name_subcat AS name FROM subcategory ORDER BY name_subcat")).mappings()
+    rows = db.execute(text("""SELECT s.subcategory_id AS id, s.name_subcat AS name FROM subcategory s
+        WHERE (s.user_id IS NULL OR s.user_id = :user_id) AND NOT EXISTS (
+            SELECT 1 FROM hidden_expense_category h WHERE h.user_id = :user_id AND h.subcategory_id = s.subcategory_id
+        ) ORDER BY s.name_subcat"""), {"user_id": get_current_user_id(db)}).mappings()
     return list(rows)
 
 
@@ -303,6 +386,7 @@ def list_expenses(years: list[int] | None = Query(default=None), db: Session = D
 @router.post("/budget/expenses", response_model=ExpenseRead, status_code=status.HTTP_201_CREATED)
 def create_expense(payload: ExpenseCreate, db: Session = Depends(get_db)):
     user_id = get_current_user_id(db)
+    validate_category(db, user_id, payload.subcategory_id)
     expense_id = db.execute(
         text(
             """
@@ -328,6 +412,7 @@ def update_expense(expense_id: int, payload: ExpenseUpdate, db: Session = Depend
         raise HTTPException(status_code=404, detail="Expense not found")
     data = dict(current)
     data.update({key: value for key, value in payload.model_dump(exclude_unset=True).items() if value is not None})
+    validate_category(db, user_id, data["subcategory_id"], allow_hidden=data["subcategory_id"] == current["subcategory_id"])
     db.execute(
         text(
             """
